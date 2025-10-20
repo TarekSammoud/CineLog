@@ -12,30 +12,31 @@ import androidx.compose.ui.res.stringResource
 import fr.eseo.ld.ts.cinelog.R
 
 
-interface ImdbApiService {
-
-    @GET("titles")
-    suspend fun fetchAllMedia(): MediaResponse
+interface OmdbApiService {
 
 
-    @GET("titles")
-    suspend fun fetchMediaByType(@Query("types") type: String): MediaResponse
+    @GET("/")
+    suspend fun getMovieById(
+        @Query("i") imdbId: String,
+        @Query("apikey") apiKey: String
+    ): OmdbMovie
+
+
 }
-object ImdbApiServiceImpl {
+object OmdbApiServiceImpl {
 
-    private const val BASE_URL = "https://api.imdbapi.dev/"
+    private const val BASE_URL = "https://www.omdbapi.com/"
 
     // Retrofit instance for imdbapi.dev
-    private val imdbRetrofit: Retrofit by lazy {
+
+
+    private val omdbRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
-
-    // API for imdbapi.dev
-    val imdbApi: ImdbApiService by lazy { imdbRetrofit.create(ImdbApiService::class.java) }
-
-
+    // API for omdbapi.com
+    val omdbApi: OmdbApiService by lazy { omdbRetrofit.create(OmdbApiService::class.java) }
 }

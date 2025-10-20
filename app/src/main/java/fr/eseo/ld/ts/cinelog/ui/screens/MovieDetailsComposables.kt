@@ -112,6 +112,7 @@ fun YoutubeTrailerBox(trailerId: String?) {
 fun StaticMovieDetailScreen(
     viewModel: ImdbViewModel,
     navController: NavController,
+    movieId: String,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -119,16 +120,18 @@ fun StaticMovieDetailScreen(
     val isLoading by viewModel.isLoading.observeAsState(false)
     val errorMessage by viewModel.errorMessage.observeAsState()
     val trailerId by viewModel.youtubeTrailerId.observeAsState(null)
+    val context = LocalContext.current
 
     // Fetch movie and trailer
     LaunchedEffect(Unit) {
-        viewModel.fetchOmdbMovie("tt5950044")
+        viewModel.fetchOmdbMovie(movieId,context.getString(R.string.omdb_api_key))
     }
 
     // Fetch trailer once movie is loaded
     LaunchedEffect(movie) {
         movie?.let {
-            viewModel.fetchYoutubeTrailer(it.title, it.year, "<YOUTUBE_API_KEY>")
+            viewModel.fetchYoutubeTrailer(it.title, it.year,context.getString(R.string.youtube_api_key)
+            )
         }
     }
 
@@ -228,7 +231,7 @@ fun StaticMovieDetailScreen(
     }
 }
 
-
+/*
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -244,12 +247,14 @@ fun MovieDetailsPreview() {
         youtubeApi = YoutubeApi.api
     )
 
+    val context = LocalContext.current
+
     // ViewModel
     val viewModel = remember { ImdbViewModel(repository,youtubeRepository) }
 
     // Trigger static fetch
     LaunchedEffect(Unit) {
-        viewModel.fetchOmdbMovie("tt5950044")
+        viewModel.fetchOmdbMovie(movieId,context.getString(R.string.omdb_api_key))
     }
 
     fr.eseo.ld.ts.cinelog.ui.theme.AppTheme {
@@ -258,4 +263,4 @@ fun MovieDetailsPreview() {
             navController = navController
         )
     }
-}
+}*/

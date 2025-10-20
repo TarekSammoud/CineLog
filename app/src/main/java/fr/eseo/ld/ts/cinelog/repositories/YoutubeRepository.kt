@@ -1,11 +1,13 @@
 package fr.eseo.ld.ts.cinelog.repositories
 
 import fr.eseo.ld.ts.cinelog.model.YoutubeSearchResponse
-import fr.eseo.ld.ts.cinelog.network.YoutubeApi
 import fr.eseo.ld.ts.cinelog.network.YoutubeApiService
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class YoutubeRepository(
-    private val youtubeApi: YoutubeApiService = YoutubeApi.api
+@Singleton
+class YoutubeRepository @Inject constructor(
+    private val youtubeApi: YoutubeApiService
 ) {
 
     suspend fun fetchYoutubeTrailer(title: String, year: String, apiKey: String): YoutubeSearchResponse {

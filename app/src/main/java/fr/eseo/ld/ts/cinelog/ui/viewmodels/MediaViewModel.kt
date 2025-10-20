@@ -1,14 +1,19 @@
 package fr.eseo.ld.ts.cinelog.viewmodel
 
 import android.util.Log
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import fr.eseo.ld.ts.cinelog.R
 import fr.eseo.ld.ts.cinelog.model.Media
 import fr.eseo.ld.ts.cinelog.model.OmdbMovie
 import fr.eseo.ld.ts.cinelog.repositories.ImdbRepository
 import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class ImdbViewModel(private val repository: ImdbRepository,
+@HiltViewModel
+class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
     private val youtubeRepository: YoutubeRepository) : ViewModel() {
 
     private val _mediaList = MutableLiveData<List<Media>>()
@@ -37,13 +42,14 @@ class ImdbViewModel(private val repository: ImdbRepository,
         }
     }
 
-    fun fetchOmdbMovie(imdbId: String) {
+    fun fetchOmdbMovie(imdbId: String,apiKey: String) {
         _isLoading.value = true
         _errorMessage.value = null
 
+
         viewModelScope.launch {
             try {
-                val movie = repository.fetchOmdbMovie(imdbId)
+                val movie = repository.fetchOmdbMovie(imdbId, apiKey )
                 _omdbMovie.value = movie
                 Log.d("ImdbViewModel", "Fetched OMDb movie: ${movie.title}")
             } catch (e: Exception) {

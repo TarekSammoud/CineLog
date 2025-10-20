@@ -178,15 +178,19 @@ private fun SummaryScreenMediaList(
             .padding(4.dp)
     ) {
         items(mediaList.size) { index ->
+            val media = mediaList[index]
             SummaryScreenMediaCard(
-                media = mediaList[index],
-                onClick = onClick,
-                onLongClick = onLongClick
+                media = media,
+                onClick = {
+                    // Navigate to the details screen with the movieId
+                    navController.navigate("DETAILS_SCREEN/${media.id}")
+                },
+                onLongClick = { /* optional */ }
             )
         }
     }
 }
-
+/*
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun SummaryScreenPreview() {
@@ -213,3 +217,4 @@ fun SummaryScreenPreview() {
         )
     }
 }
+*/

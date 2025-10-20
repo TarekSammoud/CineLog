@@ -13,8 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import dagger.hilt.android.AndroidEntryPoint
-import fr.eseo.ld.ts.cinelog.ui.screens.MovieDetailsPreview
-import fr.eseo.ld.ts.cinelog.ui.screens.SummaryScreenPreview
+import fr.eseo.ld.ts.cinelog.ui.CineLogUi
+
 import fr.eseo.ld.ts.cinelog.ui.theme.AppTheme
 
 @AndroidEntryPoint
@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                MovieDetailsPreview()
+                CineLogUi()
             }
         }
     }
