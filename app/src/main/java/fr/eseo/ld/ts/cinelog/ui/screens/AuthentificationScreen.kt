@@ -7,12 +7,17 @@ import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -22,7 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
-
+import  fr.eseo.ld.ts.cinelog.R
 @Composable
 fun MainAuthenticationScreen(
     onSignUpSelected: () -> Unit,
@@ -33,7 +38,6 @@ fun MainAuthenticationScreen(
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
 
-    // Lire les locals composables UNE FOIS ici (dans la composition)
     val context = LocalContext.current
     val activity: Activity? = LocalActivity.current
 
@@ -81,92 +85,116 @@ fun MainAuthenticationScreen(
             Toast.makeText(context, "Erreur inattendue lors de la connexion", Toast.LENGTH_LONG).show()
         }
     }
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Background Image
+        Image(
+            painter = painterResource(id = R.drawable.login_background), // your drawable
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize() // fill whole screen,
 
-    Scaffold { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .padding(padding),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = "Bienvenue", style = MaterialTheme.typography.headlineMedium)
+        )
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Mot de passe") },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (errorMessage.isNotEmpty()) {
+        // Foreground: Scaffold content
+        Scaffold(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent, // important: make scaffold background transparent
+            contentColor = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.fillMaxSize()
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .padding(padding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    text = errorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    text = "Bienvenue",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
                 )
-            }
 
-            Button(onClick = {
-                authenticationViewModel.loginWithEmail(email, password) { success, error ->
-                    if (success) {
-                        errorMessage = ""
-                        onLoginSuccess()
-                    } else {
-                        errorMessage = error ?: "Email ou mot de passe incorrect."
+                Spacer(modifier = Modifier.height(32.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Mot de passe") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (errorMessage.isNotEmpty()) {
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Button(
+                        onClick = {
+                            authenticationViewModel.loginWithEmail(email, password) { success, error ->
+                                if (success) {
+                                    errorMessage = ""
+                                    onLoginSuccess()
+                                } else {
+                                    errorMessage = error ?: "Email ou mot de passe incorrect."
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        colors =  ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
+
+                    ) {
+                        Text("Se connecter")
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = onSignUpSelected,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Text("S'inscrire")
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            val googleSignInClient = authenticationViewModel.getGoogleSignInClient(context)
+                            val signInIntent = googleSignInClient.getSignInIntent()
+                            googleSignInLauncher.launch(signInIntent)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Text("Se connecter avec Google")
                     }
                 }
-            }) {
-                Text("Se connecter")
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(onClick = onSignUpSelected) {
-                Text("S'inscrire")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(onClick = {
-                val googleSignInClient = authenticationViewModel.getGoogleSignInClient(context)
-                try {
-                    val signInIntent = googleSignInClient.getSignInIntent()
-                    if (activity == null) {
-                        Log.w("AuthScreen", "Activity introuvable, utilisation du launcher avec Context")
-                    }
-                    googleSignInLauncher.launch(signInIntent)
-                } catch (e: ActivityNotFoundException) {
-                    Log.e("AuthScreen", "Activity pour Google Sign-In introuvable", e)
-                    Toast.makeText(context, "Impossible de lancer Google Sign-In", Toast.LENGTH_SHORT).show()
-                } catch (t: Throwable) {
-                    Log.e("AuthScreen", "Erreur au lancement de Google Sign-In", t)
-                    Toast.makeText(context, "Erreur inattendue", Toast.LENGTH_SHORT).show()
-                }
-            }) {
-                Text("Se connecter avec Google")
-            }
-
         }
     }
 }
+
 
 @Composable
 fun SignUpScreen(
@@ -240,13 +268,22 @@ fun SignUpScreen(
                         errorMessage = error ?: "Une erreur est survenue lors de l'inscription."
                     }
                 }
-            }) {
+            },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)) {
                 Text("S'inscrire")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(onClick = onBack) {
+            Button(onClick = onBack,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+
+            )
+                {
                 Text("Retour")
             }
         }

@@ -4,6 +4,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -21,14 +24,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil3.compose.AsyncImage
 import fr.eseo.ld.ts.cinelog.R
+import fr.eseo.ld.ts.cinelog.data.AuthState
 import fr.eseo.ld.ts.cinelog.model.Media
 import fr.eseo.ld.ts.cinelog.network.ImdbApiServiceImpl
 import fr.eseo.ld.ts.cinelog.network.YoutubeApi
 import fr.eseo.ld.ts.cinelog.repositories.ImdbRepository
 import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
+import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
 import fr.eseo.ld.ts.cinelog.viewmodel.ImdbViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -190,6 +197,68 @@ private fun SummaryScreenMediaList(
         }
     }
 }
+@Composable
+fun CineLogWithBottomBar(
+    authenticationViewModel: AuthenticationViewModel = hiltViewModel(),
+    content: @Composable (PaddingValues) -> Unit
+) {
+    val navController = rememberNavController()
+    val authState by authenticationViewModel.authState.collectAsState()
+
+    Scaffold(
+        bottomBar = {
+            BottomAppBar(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                actions = {
+                    Spacer(modifier = Modifier.weight(1f)) // center the icon
+                    IconButton(onClick = {
+                        when (authState) {
+                            AuthState.LOGGED_OUT -> {
+                                // Navigate to login screen
+                                navController.navigate("auth")
+                            }
+                            AuthState.LOGGED_IN -> {
+                                // Logout
+                                authenticationViewModel.logout()
+                            }
+                            AuthState.LOADING -> {
+                                // Optional: show toast or do nothing
+                            }
+                        }
+                    }) {
+                        when (authState) {
+                            AuthState.LOGGED_OUT -> {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = "Login"
+                                )
+                            }
+                            AuthState.LOGGED_IN -> {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Logout"
+                                )
+                            }
+                            AuthState.LOADING -> {
+                                // Optional: loading icon
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            )
+        }
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding)) {
+            content(padding)
+        }
+    }
+}
+
 /*
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -218,3 +287,4 @@ fun SummaryScreenPreview() {
     }
 }
 */
+

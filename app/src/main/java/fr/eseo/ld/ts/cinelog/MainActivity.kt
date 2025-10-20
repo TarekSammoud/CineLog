@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import dagger.hilt.android.AndroidEntryPoint
 import fr.eseo.ld.ts.cinelog.ui.CineLogUi
+import fr.eseo.ld.ts.cinelog.ui.screens.CineLogWithBottomBar
 
 import fr.eseo.ld.ts.cinelog.ui.theme.AppTheme
 
@@ -25,10 +26,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                CineLogUi()
+                CineLogWithBottomBar { padding ->
+                    CineLogUi()
+                }
             }
         }
     }
-
 
 }

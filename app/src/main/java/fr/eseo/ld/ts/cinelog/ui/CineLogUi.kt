@@ -1,10 +1,10 @@
 package fr.eseo.ld.ts.cinelog.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,71 +15,92 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import dagger.hilt.android.lifecycle.HiltViewModel
-import fr.eseo.ld.ts.cinelog.repositories.ImdbRepository
-import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
-import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
-import fr.eseo.ld.ts.cinelog.ui.screens.SummaryScreen
-import fr.eseo.ld.ts.cinelog.ui.screens.StaticMovieDetailScreen
-import fr.eseo.ld.ts.cinelog.viewmodel.ImdbViewModel
-import fr.eseo.ld.ts.cinelog.network.ImdbApiServiceImpl
-import fr.eseo.ld.ts.cinelog.network.YoutubeApi
 import fr.eseo.ld.ts.cinelog.R
-import fr.eseo.ld.ts.cinelog.network.OmdbApiService
-import fr.eseo.ld.ts.cinelog.network.OmdbApiServiceImpl
-
+import fr.eseo.ld.ts.cinelog.data.AuthState
+import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
+import fr.eseo.ld.ts.cinelog.ui.screens.*
+import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
+import fr.eseo.ld.ts.cinelog.viewmodel.ImdbViewModel
 
 @Composable
 fun CineLogUi() {
-    val application = LocalContext.current.applicationContext as Application
     val navController = rememberNavController()
-    // --- Create repositories and view model ---
-    val imdbRepository = remember {
-        ImdbRepository(
-            imdbApi = ImdbApiServiceImpl.imdbApi,
-            omdbApi = OmdbApiServiceImpl.omdbApi
-        )
+    val authViewModel: AuthenticationViewModel = hiltViewModel()
+    val authState by authViewModel.authState.collectAsState()
+
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+
+    // Reactive navigation based on auth state
+    LaunchedEffect(authState) {
+        when (authState) {
+            AuthState.LOADING -> {
+                // stay on a splash/loading screen if needed
+            }
+            AuthState.LOGGED_IN -> {
+                navController.navigate(CineLogScreens.SUMMARY_SCREEN.name) {
+                    popUpTo(0) // clear backstack
+                }
+            }
+            AuthState.LOGGED_OUT -> {
+                navController.navigate("auth") {
+                    popUpTo(0)
+                }
+            }
+        }
     }
 
-    val youtubeRepository = remember {
-        YoutubeRepository(
-            youtubeApi = YoutubeApi.api
-        )
-    }
+    NavHost(navController = navController, startDestination = "auth") {
 
-    val viewModel: ImdbViewModel = hiltViewModel()
+        // --- AUTH FLOW ---
+        composable("auth") {
+            MainAuthenticationScreen(
+                authenticationViewModel = authViewModel,
+                onSignUpSelected = { navController.navigate("signup") },
+                onLoginSuccess = {
+                    navController.navigate(CineLogScreens.SUMMARY_SCREEN.name) {
+                        popUpTo("auth") { inclusive = true }
+                    }
+                }
+            )
+        }
 
+        composable("signup") {
+            SignUpScreen(
+                authenticationViewModel = authViewModel,
+                onSignUpSuccess = {
+                    navController.navigate(CineLogScreens.SUMMARY_SCREEN.name) {
+                        popUpTo("signup") { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
 
-    // --- Navigation graph ---
-    NavHost(
-        navController = navController,
-        startDestination = CineLogScreens.SUMMARY_SCREEN.name
-    ) {
-        // SUMMARY SCREEN
+        // --- MAIN APP FLOW ---
         composable(CineLogScreens.SUMMARY_SCREEN.name) {
+            val imdbViewModel: ImdbViewModel = hiltViewModel()
             SummaryScreen(
-                viewModel = viewModel,
+                viewModel = imdbViewModel,
                 navController = navController
             )
         }
 
-        // DETAILS SCREEN
         composable(
             route = CineLogScreens.DETAILS_SCREEN.name + "/{movieId}",
-            arguments = listOf(
-                navArgument("movieId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("movieId") { type = NavType.StringType })
         ) { backStackEntry ->
             val movieId = backStackEntry.arguments?.getString("movieId")
-
+            val imdbViewModel: ImdbViewModel = hiltViewModel()
             if (movieId != null) {
-                // Load specific movie info
                 LaunchedEffect(movieId) {
-                    viewModel.fetchOmdbMovie(movieId,application.getString(R.string.omdb_api_key))
+                    imdbViewModel.fetchOmdbMovie(
+                        movieId,
+                        application.getString(R.string.omdb_api_key)
+                    )
                 }
-
                 StaticMovieDetailScreen(
-                    viewModel = viewModel,
+                    viewModel = imdbViewModel,
                     navController = navController,
                     movieId = movieId
                 )
