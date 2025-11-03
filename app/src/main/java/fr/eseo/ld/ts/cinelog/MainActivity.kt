@@ -26,9 +26,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme {
-                CineLogWithBottomBar { padding ->
-                    CineLogUi()
-                }
+                CineLogUi()
             }
         }
     }

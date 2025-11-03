@@ -199,58 +199,23 @@ private fun SummaryScreenMediaList(
 }
 @Composable
 fun CineLogWithBottomBar(
-    authenticationViewModel: AuthenticationViewModel = hiltViewModel(),
+    navController: NavController,
     content: @Composable (PaddingValues) -> Unit
 ) {
-    val navController = rememberNavController()
-    val authState by authenticationViewModel.authState.collectAsState()
-
     Scaffold(
         bottomBar = {
-            BottomAppBar(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                actions = {
-                    Spacer(modifier = Modifier.weight(1f)) // center the icon
-                    IconButton(onClick = {
-                        when (authState) {
-                            AuthState.LOGGED_OUT -> {
-                                // Navigate to login screen
-                                navController.navigate("auth")
-                            }
-                            AuthState.LOGGED_IN -> {
-                                // Logout
-                                authenticationViewModel.logout()
-                            }
-                            AuthState.LOADING -> {
-                                // Optional: show toast or do nothing
-                            }
-                        }
-                    }) {
-                        when (authState) {
-                            AuthState.LOGGED_OUT -> {
-                                Icon(
-                                    imageVector = Icons.Default.AccountCircle,
-                                    contentDescription = "Login"
-                                )
-                            }
-                            AuthState.LOGGED_IN -> {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Logout"
-                                )
-                            }
-                            AuthState.LOADING -> {
-                                // Optional: loading icon
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
+            BottomAppBar {
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    navController.navigate("PROFIL_SCREEN")
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Profil"
+                    )
                 }
-            )
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
@@ -258,6 +223,8 @@ fun CineLogWithBottomBar(
         }
     }
 }
+
+
 
 /*
 @Preview(showBackground = true, showSystemUi = true)

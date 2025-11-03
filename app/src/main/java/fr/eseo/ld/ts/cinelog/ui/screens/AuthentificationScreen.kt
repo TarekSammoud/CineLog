@@ -3,6 +3,7 @@ package fr.eseo.ld.ts.cinelog.ui.screens
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.util.Log
+import android.util.Patterns
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,6 +29,10 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
 import  fr.eseo.ld.ts.cinelog.R
+import kotlin.compareTo
+import kotlin.text.matches
+
+
 @Composable
 fun MainAuthenticationScreen(
     onSignUpSelected: () -> Unit,
@@ -207,150 +212,101 @@ fun SignUpScreen(
     var pseudo by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
 
-    Scaffold { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .padding(padding),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = "Inscription")
+    Box(modifier = Modifier.fillMaxSize()) {
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Image(
+            painter = painterResource(id = R.drawable.login_background), // your drawable
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize() // fill whole screen,
 
-            OutlinedTextField(
-                value = pseudo,
-                onValueChange = { pseudo = it },
-                label = { Text("Pseudo") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+        )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Mot de passe") },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (errorMessage.isNotEmpty()) {
-                Text(
-                    text = errorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(bottom = 8.dp)
+        Scaffold(
+            containerColor = Color.Transparent,
+            modifier = Modifier.fillMaxSize()
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .padding(padding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(text = "Inscription", color = Color.White)
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = pseudo,
+                    onValueChange = { pseudo = it },
+                    label = { Text("Pseudo") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-            }
-
-            Button(onClick = {
-                authenticationViewModel.signUpWithEmail(email, password, pseudo) { success, error ->
-                    if (success) {
-                        errorMessage = ""
-                        onSignUpSuccess()
-                    } else {
-                        errorMessage = error ?: "Une erreur est survenue lors de l'inscription."
-                    }
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Mot de passe") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                if (errorMessage.isNotEmpty()) {
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
                 }
-            },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)) {
-                Text("S'inscrire")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(onClick = onBack,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-
-            )
-                {
-                Text("Retour")
-            }
-        }
-    }
-}
-
-@Composable
-fun HomeScreen(
-    authenticationViewModel: AuthenticationViewModel = hiltViewModel(),
-    onLogout: () -> Unit
-) {
-    val user by authenticationViewModel.user.collectAsState()
-    Scaffold { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .padding(padding),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = "Accueil", style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(text = user?.email ?: "Utilisateur inconnu")
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(onClick = onLogout) {
-                Text("Se déconnecter")
-            }
-        }
-    }
-}
-
-@Composable
-fun AuthenticationNavHost(authenticationViewModel: AuthenticationViewModel = hiltViewModel()) {
-    val navController = rememberNavController()
-
-    NavHost(navController = navController, startDestination = "main") {
-        composable("main") {
-            MainAuthenticationScreen(
-                authenticationViewModel = authenticationViewModel,
-                onSignUpSelected = { navController.navigate("signup") },
-                onLoginSuccess = {
-                    navController.navigate("home") {
-                        popUpTo("main") { inclusive = true }
-                    }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val emailTrim = email.trim()
+                        val pseudoTrim = pseudo.trim()
+                        val passwordTrim = password
+                        if (emailTrim.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(emailTrim).matches()) {
+                            errorMessage = "Adresse e‑mail invalide"
+                            return@Button
+                        }
+                        if (passwordTrim.length < 6) {
+                            errorMessage = "Le mot de passe doit contenir au moins 6 caractères."
+                            return@Button
+                        }
+                        authenticationViewModel.signUpWithEmail(emailTrim, passwordTrim, pseudoTrim) { success, error ->
+                            if (success) {
+                                errorMessage = ""
+                                onSignUpSuccess()
+                            } else {
+                                errorMessage = error ?: "Une erreur est survenue lors de l'inscription."
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Text("S'inscrire")
                 }
-            )
-        }
-        composable("signup") {
-            SignUpScreen(
-                authenticationViewModel = authenticationViewModel,
-                onSignUpSuccess = {
-                    navController.navigate("home") {
-                        popUpTo("signup") { inclusive = true }
-                    }
-                },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("home") {
-            HomeScreen(authenticationViewModel = authenticationViewModel, onLogout = {
-                authenticationViewModel.logout()
-                navController.navigate("main") {
-                    popUpTo("home") { inclusive = true }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Text("Retour")
                 }
-            })
+            }
         }
     }
 }

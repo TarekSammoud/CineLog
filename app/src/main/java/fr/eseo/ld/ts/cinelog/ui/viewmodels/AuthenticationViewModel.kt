@@ -171,4 +171,18 @@ class AuthenticationViewModel @Inject constructor(
     fun getGoogleSignInClient(context: Context): GoogleSignInClient {
         return authenticationRepository.getGoogleSignInClient(context)
     }
+
+    fun updateUser(email: String, pseudo: String) {
+        viewModelScope.launch {
+            val uid = user.value?.uid ?: return@launch
+            val userData = mapOf(
+                "email" to email,
+                "pseudo" to pseudo
+            )
+            authenticationRepository.saveUserData(uid, userData)
+            _user.value = authenticationRepository.getCurrentUser()
+        }
+    }
+
+
 }
