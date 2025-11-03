@@ -200,7 +200,6 @@ fun MainAuthenticationScreen(
     }
 }
 
-
 @Composable
 fun SignUpScreen(
     authenticationViewModel: AuthenticationViewModel = hiltViewModel(),
@@ -210,16 +209,16 @@ fun SignUpScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var pseudo by remember { mutableStateOf("") }
+    var nom by remember { mutableStateOf("") }
+    var prenom by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
 
     Box(modifier = Modifier.fillMaxSize()) {
-
         Image(
-            painter = painterResource(id = R.drawable.login_background), // your drawable
+            painter = painterResource(id = R.drawable.login_background),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize() // fill whole screen,
-
+            modifier = Modifier.fillMaxSize()
         )
 
         Scaffold(
@@ -243,7 +242,23 @@ fun SignUpScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = nom,
+                    onValueChange = { nom = it },
+                    label = { Text("Nom") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = prenom,
+                    onValueChange = { prenom = it },
+                    label = { Text("Prénom") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -273,6 +288,8 @@ fun SignUpScreen(
                     onClick = {
                         val emailTrim = email.trim()
                         val pseudoTrim = pseudo.trim()
+                        val nomTrim = nom.trim()
+                        val prenomTrim = prenom.trim()
                         val passwordTrim = password
                         if (emailTrim.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(emailTrim).matches()) {
                             errorMessage = "Adresse e‑mail invalide"
@@ -282,7 +299,21 @@ fun SignUpScreen(
                             errorMessage = "Le mot de passe doit contenir au moins 6 caractères."
                             return@Button
                         }
-                        authenticationViewModel.signUpWithEmail(emailTrim, passwordTrim, pseudoTrim) { success, error ->
+                        if (nomTrim.isEmpty()) {
+                            errorMessage = "Le nom est obligatoire."
+                            return@Button
+                        }
+                        if (prenomTrim.isEmpty()) {
+                            errorMessage = "Le prénom est obligatoire."
+                            return@Button
+                        }
+                        authenticationViewModel.signUpWithEmail(
+                            nomTrim,
+                            prenomTrim,
+                            emailTrim,
+                            pseudoTrim,
+                            passwordTrim
+                        ) { success, error ->
                             if (success) {
                                 errorMessage = ""
                                 onSignUpSuccess()
@@ -310,3 +341,4 @@ fun SignUpScreen(
         }
     }
 }
+

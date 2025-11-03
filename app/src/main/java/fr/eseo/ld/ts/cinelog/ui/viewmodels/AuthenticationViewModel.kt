@@ -10,6 +10,7 @@ import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import fr.eseo.ld.ts.cinelog.data.AuthState
+import fr.eseo.ld.ts.cinelog.data.User
 import fr.eseo.ld.ts.cinelog.repositories.AuthenticationRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,20 +18,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-
+import kotlin.collections.toMap
 
 @HiltViewModel
 class AuthenticationViewModel @Inject constructor(
     private val authenticationRepository: AuthenticationRepository
 ) : ViewModel() {
 
-    // Current Firebase user
     private val _user = MutableStateFlow<FirebaseUser?>(null)
     val user: StateFlow<FirebaseUser?> = _user.asStateFlow()
 
-    // Authentication state for UI
     private val _authState = MutableStateFlow(AuthState.LOADING)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    // Ajout du StateFlow pour l'utilisateur Firestore
+    private val _firestoreUser = MutableStateFlow<User?>(null)
+    val firestoreUser: StateFlow<User?> = _firestoreUser.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -38,6 +41,7 @@ class AuthenticationViewModel @Inject constructor(
             if (currentUser != null) {
                 _user.value = currentUser
                 _authState.value = AuthState.LOGGED_IN
+                loadFirestoreUser(currentUser.uid)
             } else {
                 _authState.value = AuthState.LOADING
                 loginAnonymously()
@@ -45,45 +49,47 @@ class AuthenticationViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Anonymous login
-     */
     fun loginAnonymously() {
         viewModelScope.launch {
             try {
                 authenticationRepository.loginAnonymously().await()
-                _user.value = authenticationRepository.getCurrentUser()
+                val currentUser = authenticationRepository.getCurrentUser()
+                _user.value = currentUser
                 _authState.value = AuthState.LOGGED_IN
+                if (currentUser != null) {
+                    loadFirestoreUser(currentUser.uid)
+                }
             } catch (e: Exception) {
                 _user.value = null
                 _authState.value = AuthState.LOGGED_OUT
+                _firestoreUser.value = null
             }
         }
     }
 
-    /**
-     * Logout
-     */
     fun logout() {
         authenticationRepository.logout()
         _user.value = null
         _authState.value = AuthState.LOGGED_OUT
+        _firestoreUser.value = null
         loginAnonymously()
     }
 
-    /**
-     * Email & password login
-     */
     fun loginWithEmail(email: String, password: String, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
                 authenticationRepository.loginWithEmail(email, password).await()
-                _user.value = authenticationRepository.getCurrentUser()
+                val currentUser = authenticationRepository.getCurrentUser()
+                _user.value = currentUser
                 _authState.value = AuthState.LOGGED_IN
+                if (currentUser != null) {
+                    loadFirestoreUser(currentUser.uid)
+                }
                 callback(true, null)
             } catch (e: Exception) {
                 _user.value = null
                 _authState.value = AuthState.LOGGED_OUT
+                _firestoreUser.value = null
                 val errorMessage = when {
                     e.message?.contains("The supplied auth credential is incorrect") == true ->
                         "Les informations d'identification sont incorrectes"
@@ -96,13 +102,13 @@ class AuthenticationViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Email & password signup
-     */
     fun signUpWithEmail(
+        nom: String,
+        prenom: String,
         email: String,
-        password: String,
         pseudo: String,
+        password: String,
+        photoUrl: String? = null,
         callback: (Boolean, String?) -> Unit
     ) {
         viewModelScope.launch {
@@ -110,13 +116,17 @@ class AuthenticationViewModel @Inject constructor(
                 val result = authenticationRepository.signUpWithEmail(email, password).await()
                 val user = result.user
                 if (user != null) {
-                    val userData = mapOf(
-                        "pseudo" to pseudo,
-                        "email" to email
+                    val userData = User(
+                        nom = nom,
+                        prenom = prenom,
+                        email = email,
+                        pseudo = pseudo,
+                        photoUrl = photoUrl ?: ""
                     )
-                    authenticationRepository.saveUserData(user.uid, userData)
+                    authenticationRepository.saveUserData(user.uid, userData.toMap())
                     _user.value = user
                     _authState.value = AuthState.LOGGED_IN
+                    _firestoreUser.value = userData
                     callback(true, null)
                 } else {
                     callback(false, "Une erreur est survenue.")
@@ -124,6 +134,7 @@ class AuthenticationViewModel @Inject constructor(
             } catch (e: Exception) {
                 _user.value = null
                 _authState.value = AuthState.LOGGED_OUT
+                _firestoreUser.value = null
                 val real = e.cause ?: e
                 val errorMessage = when (real) {
                     is FirebaseAuthUserCollisionException ->
@@ -147,42 +158,51 @@ class AuthenticationViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Google Sign-In
-     */
     fun signInWithGoogle(idToken: String, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
                 authenticationRepository.signInWithGoogle(idToken).await()
-                _user.value = authenticationRepository.getCurrentUser()
+                val currentUser = authenticationRepository.getCurrentUser()
+                _user.value = currentUser
                 _authState.value = AuthState.LOGGED_IN
+                if (currentUser != null) {
+                    loadFirestoreUser(currentUser.uid)
+                }
                 callback(true, null)
             } catch (e: Exception) {
                 _user.value = null
                 _authState.value = AuthState.LOGGED_OUT
+                _firestoreUser.value = null
                 callback(false, "Échec de la connexion avec Google.")
             }
         }
     }
 
-    /**
-     * Get GoogleSignInClient
-     */
     fun getGoogleSignInClient(context: Context): GoogleSignInClient {
         return authenticationRepository.getGoogleSignInClient(context)
     }
 
-    fun updateUser(email: String, pseudo: String) {
+    fun updateUser(nom: String, prenom: String, email: String, pseudo: String, photoUrl: String? = null) {
         viewModelScope.launch {
-            val uid = user.value?.uid ?: return@launch
-            val userData = mapOf(
-                "email" to email,
-                "pseudo" to pseudo
-            )
-            authenticationRepository.saveUserData(uid, userData)
-            _user.value = authenticationRepository.getCurrentUser()
+            val uid = _user.value?.uid ?: return@launch
+            val userData = User(nom, prenom, email, pseudo, photoUrl)
+            authenticationRepository.saveUserData(uid, userData.toMap())
+            _firestoreUser.value = userData
         }
     }
 
+    fun loadFirestoreUser(uid: String) {
+        viewModelScope.launch {
+            val userData = authenticationRepository.getUserData(uid)
+            _firestoreUser.value = userData
+        }
+    }
 
+    private fun User.toMap(): Map<String, Any?> = mapOf(
+        "nom" to nom,
+        "prenom" to prenom,
+        "email" to email,
+        "pseudo" to pseudo,
+        "photoUrl" to photoUrl
+    )
 }
