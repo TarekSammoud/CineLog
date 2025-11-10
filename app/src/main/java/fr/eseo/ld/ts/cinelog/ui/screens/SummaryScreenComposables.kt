@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -205,6 +207,23 @@ fun CineLogWithBottomBar(
     Scaffold(
         bottomBar = {
             BottomAppBar {
+                IconButton(onClick = {
+                    navController.navigate("SUMMARY_SCREEN")
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Accueil"
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    navController.navigate("SEARCH_SCREEN")
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Recherche"
+                    )
+                }
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(onClick = {
                     navController.navigate("PROFIL_SCREEN")
