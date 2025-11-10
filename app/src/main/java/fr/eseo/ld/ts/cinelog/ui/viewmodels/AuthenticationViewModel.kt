@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlin.collections.toMap
+import kotlin.toString
 
 @HiltViewModel
 class AuthenticationViewModel @Inject constructor(
@@ -166,7 +167,21 @@ class AuthenticationViewModel @Inject constructor(
                 _user.value = currentUser
                 _authState.value = AuthState.LOGGED_IN
                 if (currentUser != null) {
-                    loadFirestoreUser(currentUser.uid)
+                    // Vérifie si l'utilisateur existe déjà dans Firestore
+                    val userData = authenticationRepository.getUserData(currentUser.uid)
+                    if (userData == null) {
+                        // Récupère les infos Google
+                        val nom = currentUser.displayName?.split(" ")?.lastOrNull() ?: ""
+                        val prenom = currentUser.displayName?.split(" ")?.firstOrNull() ?: ""
+                        val email = currentUser.email ?: ""
+                        val pseudo = currentUser.displayName ?: ""
+                        val photoUrl = currentUser.photoUrl?.toString()
+                        val newUser = User(nom, prenom, email, pseudo, photoUrl)
+                        authenticationRepository.saveUserData(currentUser.uid, newUser.toMap())
+                        _firestoreUser.value = newUser
+                    } else {
+                        _firestoreUser.value = userData
+                    }
                 }
                 callback(true, null)
             } catch (e: Exception) {
@@ -177,6 +192,7 @@ class AuthenticationViewModel @Inject constructor(
             }
         }
     }
+
 
     fun getGoogleSignInClient(context: Context): GoogleSignInClient {
         return authenticationRepository.getGoogleSignInClient(context)
