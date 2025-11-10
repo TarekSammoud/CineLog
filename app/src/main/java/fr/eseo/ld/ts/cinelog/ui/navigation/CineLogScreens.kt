@@ -5,4 +5,5 @@ enum class CineLogScreens {
     DETAILS_SCREEN,
     AUTH_SCREEN,
     PROFIL_SCREEN,
+    LISTE_A_VOIR_SCREEN,
 }

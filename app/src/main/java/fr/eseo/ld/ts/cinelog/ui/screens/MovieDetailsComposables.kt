@@ -1,6 +1,5 @@
 package fr.eseo.ld.ts.cinelog.ui.screens
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -21,6 +20,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
@@ -37,6 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,10 +48,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import fr.eseo.ld.ts.cinelog.viewmodel.ImdbViewModel
-import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
@@ -73,6 +73,8 @@ import fr.eseo.ld.ts.cinelog.R
 import fr.eseo.ld.ts.cinelog.network.YoutubeApi
 import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.ReviewViewModel
+import fr.eseo.ld.ts.cinelog.ui.viewmodels.ListeAVoirViewModel
+import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 
@@ -143,7 +145,9 @@ fun StaticMovieDetailScreen(
     viewModel: ImdbViewModel,
     navController: NavController,
     movieId: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    authenticationViewModel: AuthenticationViewModel = hiltViewModel(),
+    watchlistViewModel: ListeAVoirViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
     val movie by viewModel.omdbMovie.observeAsState(null)
@@ -151,6 +155,21 @@ fun StaticMovieDetailScreen(
     val errorMessage by viewModel.errorMessage.observeAsState()
     val trailerId by viewModel.youtubeTrailerId.observeAsState(null)
     val context = LocalContext.current
+
+    // Get user ID for watchlist
+    val user by authenticationViewModel.user.collectAsState()
+    val userId = user?.uid ?: ""
+
+    // Get watchlist to check if movie is bookmarked
+    val watchlist by watchlistViewModel.watchlist.collectAsState()
+    val isBookmarked = watchlist.any { it.movieId == movieId }
+
+    // Load watchlist
+    LaunchedEffect(userId) {
+        if (userId.isNotBlank()) {
+            watchlistViewModel.loadWatchlist(userId)
+        }
+    }
 
     // Fetch movie
     LaunchedEffect(Unit) {
@@ -166,7 +185,7 @@ fun StaticMovieDetailScreen(
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column {
-            // --- Top Bar with Back Button ---
+            // --- Top Bar with Back Button and Bookmark ---
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -175,7 +194,7 @@ fun StaticMovieDetailScreen(
             ) {
                 IconButton(onClick = { navController.popBackStack() }) {
                     Icon(
-                        imageVector = Icons.Default.KeyboardArrowLeft, // make sure you have a back arrow drawable
+                        imageVector = Icons.Default.KeyboardArrowLeft,
                         contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onBackground
                     )
@@ -184,8 +203,26 @@ fun StaticMovieDetailScreen(
                 Text(
                     text = movie?.title ?: "Movie Details",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
+                // Bookmark button
+                IconButton(
+                    onClick = {
+                        if (isBookmarked) {
+                            watchlistViewModel.removeFromWatchlist(userId, movieId)
+                        } else {
+                            watchlistViewModel.addToWatchlist(userId, movieId)
+                        }
+                    },
+                    enabled = userId.isNotBlank()
+                ) {
+                    Icon(
+                        imageVector = if (isBookmarked) Icons.Filled.BookmarkAdded else Icons.Filled.BookmarkAdd,
+                        contentDescription = if (isBookmarked) "Déjà dans la watchlist" else "Ajouter à la watchlist",
+                        tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
 
             when {

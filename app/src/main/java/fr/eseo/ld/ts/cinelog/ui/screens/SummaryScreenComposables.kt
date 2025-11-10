@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -215,6 +216,15 @@ fun CineLogWithBottomBar(
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
+
+                IconButton(onClick = {
+                    navController.navigate("LISTE_A_VOIR_SCREEN")
+                }){
+                    Icon(
+                        imageVector = Icons.Default.BookmarkAdd,
+                        contentDescription = "Liste à voir"
+                    )
+                }
             }
         }
     ) { padding ->
