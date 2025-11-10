@@ -90,6 +90,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import fr.eseo.ld.ts.cinelog.model.TmdbMovie
 import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
+import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
 
 
 // --- YouTube Trailer Box ---
@@ -150,136 +151,86 @@ fun YoutubeTrailerBox(trailerId: String?) {
 fun StaticMovieDetailScreen(
     viewModel: ImdbViewModel,
     navController: NavController,
-    movieId: String,
+    tmdbId: String,
     modifier: Modifier = Modifier
 ) {
-
-// In fetchTmdbMovieByImdbId():
     val scrollState = rememberScrollState()
-    val movie by viewModel.omdbMovie.observeAsState(null)
+    val movie by viewModel.tmdbMovie.observeAsState()
     val isLoading by viewModel.isLoading.observeAsState(false)
-    val errorMessage by viewModel.errorMessage.observeAsState()
-    val trailerId by viewModel.youtubeTrailerId.observeAsState(null)
-    val context = LocalContext.current
+    val error by viewModel.errorMessage.observeAsState()
+    val trailerId by viewModel.youtubeTrailerId.observeAsState()
     val actorImages by viewModel.actorImages.observeAsState(emptyMap())
+    val context = LocalContext.current
 
-    val tmdbMovie by viewModel.tmdbMovie.observeAsState(null) // Add this LiveData
+    // Load movie
+    LaunchedEffect(Unit) { viewModel.fetchTmdbMovieByTmdbId(tmdbId) }
 
-    // Fetch movie
-    LaunchedEffect(Unit) {
-        viewModel.fetchTmdbMovieByImdbId(movieId)
-    }
-
-    // Fetch trailer once movie is loaded
+    // Trailer + similar + actors
     LaunchedEffect(movie) {
         movie?.let {
-            viewModel.fetchYoutubeTrailer(it.title, it.year, context.getString(R.string.youtube_api_key))
-            // Add this:
-            val actors = it.actors.split(",").map { actor -> actor.trim() }
-            viewModel.fetchActorImages(actors)
+            viewModel.fetchYoutubeTrailer(
+                it.title,
+                it.release_date?.substring(0, 4) ?: "",
+                context.getString(R.string.youtube_api_key)
+            )
+            viewModel.fetchSimilarMovies(it.id.toString())
+            // Optional: fetch credits for real actor list
+            // viewModel.fetchActorImages(emptyList())
         }
     }
 
-    LaunchedEffect(tmdbMovie) {
-        tmdbMovie?.let { tmdb ->
-            viewModel.fetchSimilarMovies(tmdb.id.toString())
-        }
-    }
-
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier.fillMaxSize()) {
         Column {
-            // --- Top Bar with Back Button ---
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
+            // Top bar
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                 IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowLeft, // make sure you have a back arrow drawable
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onBackground
-                    )
+                    Icon(Icons.Default.KeyboardArrowLeft, "Back")
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = movie?.title ?: "Movie Details",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Spacer(Modifier.width(8.dp))
+                Text(movie?.title ?: "Movie Details", fontWeight = FontWeight.Bold)
             }
 
             when {
-                isLoading -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-                errorMessage != null -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Error: $errorMessage", color = MaterialTheme.colorScheme.error)
-                }
-                movie != null -> Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(16.dp)
-                ) {
-                    YoutubeTrailerBox(trailerId = trailerId)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    // Poster & details
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                        AsyncImage(
-                            model = movie!!.poster,
-                            contentDescription = movie!!.title,
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(R.drawable.ic_launcher_foreground),
-                            error = painterResource(R.drawable.ic_launcher_foreground),
-                            modifier = Modifier
-                                .width(150.dp)
-                                .height(225.dp)
-                                .clip(MaterialTheme.shapes.medium)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = movie!!.title,
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = movie!!.plot,
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 6,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Release Date: ${movie!!.released}", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Column {
-                        Text("Genre: ${movie!!.genre}")
-                        Text("Director: ${movie!!.director}")
-                        ActorsGrid(
-                            actors = movie!!.actors,
-                            actorImages = actorImages
-                        )
-                        Text("IMDB Rating: ${movie!!.imdbRating}")
-                    }
-                    Spacer(modifier = Modifier.height(24.dp))
-                    MovieReviewSection(movieId = movieId)
+                isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+                error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Error: $error", color = MaterialTheme.colorScheme.error) }
+                movie != null -> {
+                    val m = movie!!
+                    Column(Modifier.verticalScroll(scrollState).padding(16.dp)) {
+                        YoutubeTrailerBox(trailerId)
+                        Spacer(Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(24.dp))
-                    SimilarMoviesSection(
-                        similarMovies = viewModel.similarMovies.observeAsState(emptyList()).value,
-                        navController = navController
-                    )
+                        // Poster + title + overview
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                            AsyncImage(
+                                model = m.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" }
+                                    ?: R.drawable.ic_launcher_foreground,
+                                contentDescription = m.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.width(150.dp).height(225.dp).clip(MaterialTheme.shapes.medium)
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(m.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(8.dp))
+                                Text(m.overview ?: "No overview", maxLines = 6, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+                        Text("Release: ${m.release_date ?: "N/A"}")
+                        Text("Runtime: ${m.runtime ?: 0} min")
+                        Text("Genres: ${m.genres.joinToString { it.name }}")
+                        Text("Rating: ${"%.1f".format(m.vote_average)} / 10")
+
+                        Spacer(Modifier.height(24.dp))
+                        MovieReviewSection(movieId = tmdbId)   // reviews keyed by TMDB ID
+
+                        Spacer(Modifier.height(24.dp))
+                        SimilarMoviesSection(
+                            similarMovies = viewModel.similarMovies.observeAsState(emptyList()).value,
+                            navController = navController
+                        )
+                    }
                 }
             }
         }
@@ -451,21 +402,11 @@ fun SimilarMoviesSection(
     }
 }
 @Composable
-fun SimilarMovieCard(
-    movie: TmdbMovie,
-    navController: NavController
-) {
+fun SimilarMovieCard(movie: TmdbMovie, navController: NavController) {
     Card(
         modifier = Modifier
             .width(140.dp)
-            .clickable(
-                onClick = {
-                    Log.d("TMDB","${movie.imdb_id}")
-                    Log.d("TMDB ID","${movie.id}")
-
-                    navController.navigate("DETAILS_SCREEN/${movie.imdb_id ?: movie.id}")
-                }
-            ),
+            .clickable { navController.navigate("${CineLogScreens.DETAILS_SCREEN.name}/tmdb/${movie.id}") },
         shape = RoundedCornerShape(12.dp)
     ) {
         Column {
@@ -474,25 +415,16 @@ fun SimilarMovieCard(
                     ?: R.drawable.ic_launcher_foreground,
                 contentDescription = movie.title,
                 contentScale = ContentScale.Crop,
-                placeholder = painterResource(R.drawable.ic_launcher_foreground),
-                error = painterResource(R.drawable.ic_launcher_foreground),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(210.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                modifier = Modifier.fillMaxWidth().height(210.dp).clip(RoundedCornerShape(12.dp))
             )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
+            Spacer(Modifier.height(6.dp))
             Text(
                 text = movie.title,
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .padding(bottom = 8.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }
     }

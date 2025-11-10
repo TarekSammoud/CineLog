@@ -1,5 +1,6 @@
 package fr.eseo.ld.ts.cinelog.repositories
 
+import android.util.Log
 import fr.eseo.ld.ts.cinelog.model.MediaResponse
 import fr.eseo.ld.ts.cinelog.model.TmdbImagesResponse
 import fr.eseo.ld.ts.cinelog.model.TmdbMovie
@@ -15,6 +16,15 @@ class TmdbRepository @Inject constructor(
         return TmdbApiServiceImpl.tmdbApi.getMovieById(movieId, hardcodedBearer)
     }
 
+    suspend fun getTrendingMovies(page: Int): List<TmdbMovie> {
+        Log.d("TmdbRepo", "Fetching trending page $page")
+        return TmdbApiServiceImpl.tmdbApi.getTrendingMovies(hardcodedBearer, page).results
+    }
+
+    suspend fun getPopularMovies(page: Int): List<TmdbMovie> {
+        Log.d("TmdbRepo", "Fetching popular page $page")
+        return TmdbApiServiceImpl.tmdbApi.getPopularMovies(hardcodedBearer, page).results
+    }
     suspend fun getSimilarMovies(movieId: String): List<TmdbMovie> {
         return TmdbApiServiceImpl.tmdbApi.getSimilarMovies(movieId, hardcodedBearer)
             .results

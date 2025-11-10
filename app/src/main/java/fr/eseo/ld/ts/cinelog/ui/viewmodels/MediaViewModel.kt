@@ -13,164 +13,209 @@ import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
 import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
 @HiltViewModel
-class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
-                                        private val tmdbRepository: TmdbRepository,
-    private val youtubeRepository: YoutubeRepository) : ViewModel() {
+class ImdbViewModel @Inject constructor(
+    private val tmdbRepository: TmdbRepository,
+    private val youtubeRepository: YoutubeRepository
+) : ViewModel() {
 
-    private val _mediaList = MutableLiveData<List<Media>>()
-    val mediaList: LiveData<List<Media>> = _mediaList
 
+    // ── UI state ─────────────────────────────────────
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
     private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> = _errorMessage
 
-    private val _omdbMovie = MutableLiveData<OmdbMovie?>()
-    val omdbMovie: LiveData<OmdbMovie?> = _omdbMovie
-    private val _youtubeTrailerId = MutableLiveData<String?>()
-    val youtubeTrailerId: LiveData<String?> = _youtubeTrailerId
-
-
-
-    fun fetchYoutubeTrailer(title: String, year: String, apiKey: String) {
-        viewModelScope.launch {
-            try {
-                val response = youtubeRepository.fetchYoutubeTrailer(title, year, apiKey)
-                val videoId = response.items.firstOrNull()?.id?.videoId
-                _youtubeTrailerId.value = videoId
-            } catch (e: Exception) {
-                _youtubeTrailerId.value = null
-            }
-        }
-    }
-
-    private val _similarMovies = MutableLiveData<List<TmdbMovie>>()
-    val similarMovies: LiveData<List<TmdbMovie>> = _similarMovies
-
-    fun fetchSimilarMovies(tmdbId: String) {
-        Log.d("ImdbViewModel", "fetchSimilarMovies() called with TMDB ID = $tmdbId")
-        viewModelScope.launch {
-            try {
-                Log.d("ImdbViewModel", "Calling tmdbRepository.getSimilarMovies($tmdbId)…")
-                val movies = tmdbRepository.getSimilarMovies(tmdbId)
-
-                Log.d(
-                    "ImdbViewModel",
-                    "Received ${movies.size} similar movies → " +
-                            movies.joinToString(", ") { it.title }
-                )
-
-                _similarMovies.postValue(movies)
-            } catch (e: Exception) {
-                Log.e(
-                    "ImdbViewModel",
-                    "Failed to load similar movies for TMDB ID $tmdbId",
-                    e
-                )
-                _similarMovies.postValue(emptyList())
-            }
-        }
-    }
-
+    // Movie detail
     private val _tmdbMovie = MutableLiveData<TmdbMovie?>()
     val tmdbMovie: LiveData<TmdbMovie?> = _tmdbMovie
 
-    fun fetchTmdbMovieByImdbId(imdbId: String) {
-        _isLoading.value = true
-        _errorMessage.value = null
+    // Trailer
+    private val _youtubeTrailerId = MutableLiveData<String?>()
+    val youtubeTrailerId: LiveData<String?> = _youtubeTrailerId
 
-        viewModelScope.launch {
-            try {
+    // Similar movies
+    private val _similarMovies = MutableLiveData<List<TmdbMovie>>()
+    val similarMovies: LiveData<List<TmdbMovie>> = _similarMovies
 
-                val result = tmdbRepository.getMovieById(imdbId)
-                if (result != null) {
-                    _tmdbMovie.value = result
-                    Log.d("TmdbViewModel", "Fetched TMDb movie: ${result.title}")
-                } else {
-                    _errorMessage.value = "Movie not found"
-                }
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Unknown error"
-                Log.e("TmdbViewModel", "Error fetching TMDb movie: ${e.message}", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun fetchOmdbMovie(imdbId: String,apiKey: String) {
-        _isLoading.value = true
-        _errorMessage.value = null
-
-
-        viewModelScope.launch {
-            try {
-                val movie = repository.fetchOmdbMovie(imdbId, apiKey )
-                _omdbMovie.value = movie
-                Log.d("ImdbViewModel", "Fetched OMDb movie: ${movie.title}")
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Unknown error"
-                Log.e("ImdbViewModel", "Error fetching OMDb movie: ${e.message}", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun fetchFilteredMedia(type: String) {
-        _isLoading.value = true
-        _errorMessage.value = null
-        viewModelScope.launch {
-            try {
-                val response = repository.getMediaByType(type)
-                _mediaList.value = response.titles ?: emptyList()
-                Log.d("ImdbViewModel", "Fetched media by type: ${response.titles?.size ?: 0} items")
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Unknown error"
-                Log.e("ImdbViewModel", "Error fetching media by type: ${e.message}", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-// In ImdbViewModel.kt
-
+    // Actor images
     private val _actorImages = MutableLiveData<Map<String, String?>>()
     val actorImages: LiveData<Map<String, String?>> = _actorImages
 
-    fun fetchActorImages(actorNames: List<String>) {
+    // List for SummaryScreen
+    private val _movieList = MutableLiveData<List<TmdbMovie>>()
+    val movieList: LiveData<List<TmdbMovie>> = _movieList
+
+    // --- Pagination state ---
+    private var currentPage = 1
+    private var totalPages = Int.MAX_VALUE
+    private var isLoadingPage = false
+
+
+    private var currentFilter = "Trending"
+
+    // --- Reset & fetch first page ---
+    fun loadFirstPage(filter: String) {
+        currentFilter = filter
+        currentPage = 1
+        totalPages = Int.MAX_VALUE
+        _movieList.value = emptyList()
+        fetchPage(currentPage)
+    }
+
+    fun loadLastPage() {
+        if (currentPage != 1 ||isLoadingPage || currentPage >= totalPages) return
+        fetchPage(currentPage + 1)
+    }
+
+    // --- Load next page when scrolled ---
+    fun loadNextPage() {
+        if (isLoadingPage || currentPage >= totalPages) return
+        fetchPage(currentPage + 1)
+    }
+
+    private fun fetchPage(page: Int) {
+        if (isLoadingPage) return
+        isLoadingPage = true
+        _isLoading.value = true
+
         viewModelScope.launch {
-            val images = mutableMapOf<String, String?>()
-            actorNames.forEach { name ->
-                try {
-                    val url = tmdbRepository.getActorByQuery(name)
-                    images[name] = url
-                } catch (e: Exception) {
-                    images[name] = null
+            try {
+                val newMovies = when (currentFilter) {
+                    "Trending" -> tmdbRepository.getTrendingMovies(page)
+                    "Popular"  -> tmdbRepository.getPopularMovies(page)
+                    else -> emptyList()
                 }
+
+                totalPages = 500 // TMDB max ~500 pages
+                currentPage = page
+
+                val current = _movieList.value.orEmpty()
+                _movieList.postValue(newMovies)
+
+                Log.d("ImdbViewModel", "Loaded page $page → ${newMovies.size} movies (total: ${current.size + newMovies.size})")
+            } catch (e: Exception) {
+                _errorMessage.postValue("Failed to load page $page: ${e.message}")
+                Log.e("ImdbViewModel", "Pagination error", e)
+            } finally {
+                isLoadingPage = false
+                _isLoading.value = false
             }
-            _actorImages.postValue(images)
         }
     }
 
-
-    fun fetchAllMedia() {
+    // ── TMDB fetch by TMDB ID ───────────────────────
+    fun fetchTmdbMovieByTmdbId(tmdbId: String) {
+        Log.d("ImdbViewModel", "Starting fetchTmdbMovieByTmdbId for ID: $tmdbId")
         _isLoading.value = true
         _errorMessage.value = null
         viewModelScope.launch {
             try {
-                val response = repository.fetchAllMedia()
-                _mediaList.value = response.titles ?: emptyList()
-                Log.d("ImdbViewModel", "Fetched media: ${response.titles?.size ?: 0} items")
+                val movie = tmdbRepository.getMovieById(tmdbId)
+                Log.d("ImdbViewModel", "Successfully fetched TMDB movie: ${movie.title}")
+                _tmdbMovie.postValue(movie)
             } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Unknown error"
-                Log.e("ImdbViewModel", "Error fetching media: ${e.message}", e)
+                val errorMsg = e.message ?: "Unknown error"
+                Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
+                _errorMessage.postValue(errorMsg)
             } finally {
                 _isLoading.value = false
+                Log.d("ImdbViewModel", "Finished fetchTmdbMovieByTmdbId for ID: $tmdbId")
             }
+        }
+    }
+
+    // ── Trailer (title + year) ───────────────────────
+    fun fetchYoutubeTrailer(title: String, year: String, apiKey: String) {
+        Log.d("ImdbViewModel", "Starting fetchYoutubeTrailer for title: $title, year: $year")
+        viewModelScope.launch {
+            try {
+                val resp = youtubeRepository.fetchYoutubeTrailer(title, year, apiKey)
+                val videoId = resp.items.firstOrNull()?.id?.videoId
+                Log.d("ImdbViewModel", "Successfully fetched trailer ID: $videoId")
+                _youtubeTrailerId.value = videoId
+            } catch (e: Exception) {
+                val errorMsg = e.message ?: "Unknown error"
+                Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
+                _errorMessage.postValue(errorMsg)
+            }finally {
+                Log.d("ImdbViewModel", "Finished fetchYoutubeTrailer for title: $title, year: $year")
+            }
+        }
+    }
+
+    // ── Similar movies ───────────────────────────────
+    fun fetchSimilarMovies(tmdbId: String) {
+        Log.d("ImdbViewModel", "Starting fetchSimilarMovies for TMDB ID: $tmdbId")
+        viewModelScope.launch {
+            try {
+                val list = tmdbRepository.getSimilarMovies(tmdbId)
+                Log.d("ImdbViewModel", "Successfully fetched ${list.size} similar movies")
+                _similarMovies.postValue(list)
+            } catch (e: Exception) {
+                val errorMsg = e.message ?: "Unknown error"
+                Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
+                _errorMessage.postValue(errorMsg)
+            } finally {
+                Log.d("ImdbViewModel", "Finished fetchSimilarMovies for TMDB ID: $tmdbId")
+            }
+        }
+    }
+
+    // ── Actor images (optional – you can later fetch credits) ─────
+    fun fetchActorImages(names: List<String>) {
+        Log.d("ImdbViewModel", "Starting fetchActorImages for actors: ${names.joinToString()}")
+        viewModelScope.launch {
+            val map = mutableMapOf<String, String?>()
+            names.forEach { name ->
+                try {
+                    val url = tmdbRepository.getActorByQuery(name)
+                    Log.d("ImdbViewModel", "Fetched image for actor $name: $url")
+                    map[name] = url
+                } catch (e: Exception) {
+                    val errorMsg = e.message ?: "Unknown error"
+                    Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
+                    _errorMessage.postValue(errorMsg)
+                }
+            }
+            _actorImages.postValue(map)
+            Log.d("ImdbViewModel", "Finished fetchActorImages, fetched ${map.size} images")
+        }
+    }
+
+    // ── SummaryScreen lists ─────────────────────────────
+    fun fetchTrendingMovies() = viewModelScope.launch {
+        Log.d("ImdbViewModel", "Starting fetchTrendingMovies")
+        _isLoading.value = true
+        try {
+            val list = tmdbRepository.getTrendingMovies(currentPage)
+            Log.d("ImdbViewModel", "Successfully fetched ${list.size} trending movies")
+            _movieList.postValue(list)
+        } catch (e: Exception) {
+            val errorMsg = e.message ?: "Unknown error"
+            Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
+            _errorMessage.postValue(errorMsg)
+        } finally {
+            _isLoading.value = false
+            Log.d("ImdbViewModel", "Finished fetchTrendingMovies")
+        }
+    }
+
+    fun fetchPopularMovies() = viewModelScope.launch {
+        Log.d("ImdbViewModel", "Starting fetchPopularMovies")
+        _isLoading.value = true
+        try {
+            val list = tmdbRepository.getPopularMovies(currentPage)
+            Log.d("ImdbViewModel", "Successfully fetched ${list.size} popular movies")
+            _movieList.postValue(list)
+        } catch (e: Exception) {
+            val errorMsg = e.message ?: "Unknown error"
+            Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
+            _errorMessage.postValue(errorMsg)
+        } finally {
+            _isLoading.value = false
+            Log.d("ImdbViewModel", "Finished fetchPopularMovies")
         }
     }
 }

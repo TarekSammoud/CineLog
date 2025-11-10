@@ -87,32 +87,18 @@ fun CineLogUi() {
         }
 
         composable(
-            route = CineLogScreens.DETAILS_SCREEN.name + "/{movieId}",
-            arguments = listOf(navArgument("movieId") { type = NavType.StringType })
+            route = "${CineLogScreens.DETAILS_SCREEN.name}/tmdb/{tmdbId}",
+            arguments = listOf(navArgument("tmdbId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val movieId = backStackEntry.arguments?.getString("movieId")
-            val imdbViewModel: ImdbViewModel = hiltViewModel()
-            if (movieId != null) {
-                LaunchedEffect(movieId) {
-                    imdbViewModel.fetchOmdbMovie(
-                        movieId,
-                        application.getString(R.string.omdb_api_key)
-                    )
-                }
-                CineLogWithBottomBar(navController = navController) { padding ->
-                    StaticMovieDetailScreen(
-                        viewModel = imdbViewModel,
-                        navController = navController,
-                        movieId = movieId
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Movie not found.")
-                }
+            val tmdbId = backStackEntry.arguments?.getString("tmdbId") ?: return@composable
+            val viewModel: ImdbViewModel = hiltViewModel()
+
+            CineLogWithBottomBar(navController) { padding ->
+                StaticMovieDetailScreen(
+                    viewModel = viewModel,
+                    navController = navController,
+                    tmdbId = tmdbId
+                )
             }
         }
 

@@ -1,12 +1,13 @@
 package fr.eseo.ld.ts.cinelog.ui.screens
 
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -21,21 +22,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil3.compose.AsyncImage
 import fr.eseo.ld.ts.cinelog.R
-import fr.eseo.ld.ts.cinelog.data.AuthState
-import fr.eseo.ld.ts.cinelog.model.Media
-import fr.eseo.ld.ts.cinelog.network.ImdbApiServiceImpl
-import fr.eseo.ld.ts.cinelog.network.YoutubeApi
-import fr.eseo.ld.ts.cinelog.repositories.ImdbRepository
-import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
-import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
+import fr.eseo.ld.ts.cinelog.model.TmdbMovie
+import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
 import fr.eseo.ld.ts.cinelog.viewmodel.ImdbViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,11 +41,17 @@ fun SummaryScreen(
 ) {
     var selectedFilter by remember { mutableStateOf("Trending") }
 
-    val mediaList by viewModel.mediaList.observeAsState(emptyList())
+    val movieList by viewModel.movieList.observeAsState(emptyList())
     val isLoading by viewModel.isLoading.observeAsState(false)
     val errorMessage by viewModel.errorMessage.observeAsState()
 
-    LaunchedEffect(Unit) { viewModel.fetchAllMedia() }
+    val isLoadingMore = isLoading && movieList.isNotEmpty() // true only during pagination
+
+    // Load first page when filter changes
+    LaunchedEffect(selectedFilter) {
+        viewModel.loadFirstPage(selectedFilter)
+    }
+
 
     Surface(
         modifier = Modifier
@@ -87,16 +87,9 @@ fun SummaryScreen(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        listOf("Trending", "Movies", "TV Shows").forEach { filter ->
+                        listOf("Trending", "Popular").forEach { filter ->
                             Button(
-                                onClick = {
-                                    selectedFilter = filter
-                                    when (filter) {
-                                        "Movies" -> viewModel.fetchFilteredMedia("MOVIE")
-                                        "TV Shows" -> viewModel.fetchFilteredMedia("TV_SERIES")
-                                        "Trending" -> viewModel.fetchAllMedia()
-                                    }
-                                },
+                                onClick = { selectedFilter = filter },
                                 colors = if (selectedFilter == filter)
                                     ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
                                 else
@@ -109,94 +102,124 @@ fun SummaryScreen(
                 }
             },
             content = { innerPadding ->
-                if (isLoading) {
-                    // Show a loading indicator at the center
-                    androidx.compose.foundation.layout.Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.material3.CircularProgressIndicator()
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
-                } else if (errorMessage != null) {
-                    Text(
-                        text = "Error: $errorMessage",
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                } else {
-                    SummaryScreenMediaList(
-                        mediaList = mediaList,
-                        navController = navController,
-                        onClick = { /* navigate to details */ },
-                        onLongClick = { /* optional */ },
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    errorMessage != null -> {
+                        Text(
+                            text = "Error: $errorMessage",
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    else -> {
+                        SummaryScreenMediaList(
+                            movieList = movieList,
+                            isLoadingMore = isLoadingMore,
+                            navController = navController,
+                            onLoadMore = { viewModel.loadNextPage() },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    }
                 }
             }
         )
     }
 }
 
+// ── Card (TMDB version) ─────────────────────────────────────
 @Composable
 private fun SummaryScreenMediaCard(
-    media: Media,
-    onClick: (String) -> Unit,
-    onLongClick: (String) -> Unit,
+    movie: TmdbMovie,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.foundation.layout.Box(
+    Box(
         modifier = modifier
-            .combinedClickable(
-                onClick = { onClick(media.id) },
-                onLongClick = { onLongClick(media.id) }
-            )
+            .clickable(onClick = onClick)
             .padding(2.dp)
     ) {
         AsyncImage(
-            model = media.primaryImage?.url,
-            contentDescription = media.primaryTitle,
+            model = movie.poster_path?.let { "https://image.tmdb.org/t/p/w342$it" }
+                ?: R.drawable.ic_launcher_foreground,
+            contentDescription = movie.title,
             contentScale = ContentScale.Crop,
+            placeholder = painterResource(R.drawable.ic_launcher_foreground),
+            error = painterResource(R.drawable.ic_launcher_foreground),
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .clip(MaterialTheme.shapes.medium),
-            placeholder = painterResource(R.drawable.ic_launcher_foreground), // your local drawable
-            error = painterResource(R.drawable.ic_launcher_foreground)        // fallback if loading fails
+                .clip(MaterialTheme.shapes.medium)
         )
     }
 }
 
+// ── Grid ─────────────────────────────────────────────────────
 @Composable
 private fun SummaryScreenMediaList(
-    mediaList: List<Media>,
+    movieList: List<TmdbMovie>,
+    isLoadingMore: Boolean,
     navController: NavController,
-    onClick: (String) -> Unit,
-    onLongClick: (String) -> Unit,
+    onLoadMore: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val listState = rememberLazyGridState()
+
+    // Trigger load more when near bottom
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo }
+            .collect { layoutInfo ->
+                val totalItems = layoutInfo.totalItemsCount
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                if (lastVisible >= totalItems - 3 && !isLoadingMore) {
+                    onLoadMore()
+                }
+            }
+    }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
+        state = listState,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier
             .fillMaxSize()
             .padding(4.dp)
     ) {
-        items(mediaList.size) { index ->
-            val media = mediaList[index]
+        items(movieList.size,
+            key = { index -> movieList[index].id }) { index ->
+            val movie = movieList[index]
             SummaryScreenMediaCard(
-                media = media,
+                movie = movie,
                 onClick = {
-                    // Navigate to the details screen with the movieId
-                    navController.navigate("DETAILS_SCREEN/${media.id}")
-                },
-                onLongClick = { /* optional */ }
+                    navController.navigate("${CineLogScreens.DETAILS_SCREEN.name}/tmdb/${movie.id}")
+                }
             )
+        }
+
+        if (isLoadingMore) {
+            item(span = { GridItemSpan(3) }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
         }
     }
 }
+
 @Composable
 fun CineLogWithBottomBar(
     navController: NavController,
@@ -223,35 +246,3 @@ fun CineLogWithBottomBar(
         }
     }
 }
-
-
-
-/*
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun SummaryScreenPreview() {
-    val navController = androidx.navigation.compose.rememberNavController()
-
-    val repository = ImdbRepository(
-        imdbApi = ImdbApiServiceImpl.imdbApi,
-        omdbApi = ImdbApiServiceImpl.omdbApi
-    )
-
-    val youtubeRepository= YoutubeRepository(
-        youtubeApi = YoutubeApi.api
-    )
-
-    // ViewModel
-    val viewModel = remember { ImdbViewModel(repository,youtubeRepository) }
-
-
-
-    fr.eseo.ld.ts.cinelog.ui.theme.AppTheme {
-        SummaryScreen(
-            viewModel = viewModel,
-            navController = navController
-        )
-    }
-}
-*/
-
