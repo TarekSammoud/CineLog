@@ -15,7 +15,7 @@ interface TmdbApiService {
     // Get movie details by TMDb ID
     @GET("movie/{movie_id}")
     suspend fun getMovieById(
-        @Path("movie_id") movieId: Int,
+        @Path("movie_id") movieId: String,
         @Header("Authorization") authToken: String,
         @Query("language") language: String = "en-US"
     ): TmdbMovie

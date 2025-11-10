@@ -155,7 +155,7 @@ fun StaticMovieDetailScreen(
     // Fetch movie
     LaunchedEffect(Unit) {
       //  viewModel.fetchOmdbMovie(movieId, context.getString(R.string.omdb_api_key))
-        viewModel.fetchTmdbMovieByImdbId(movieId.toInt())
+        viewModel.fetchTmdbMovieByImdbId(movieId)
     }
 
     // Fetch trailer once movie is loaded

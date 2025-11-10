@@ -47,7 +47,7 @@ class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
 
     private val _tmdbMovie = MutableLiveData<TmdbMovie?>()
 
-    fun fetchTmdbMovieByImdbId(imdbId: Int) {
+    fun fetchTmdbMovieByImdbId(imdbId: String) {
         _isLoading.value = true
         _errorMessage.value = null
 
