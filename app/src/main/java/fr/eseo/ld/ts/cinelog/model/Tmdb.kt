@@ -1,9 +1,6 @@
 package fr.eseo.ld.ts.cinelog.model
 
-data class TmdbImagesResponse(
-    val backdrops: List<TmdbImage>,
-    val posters: List<TmdbImage>
-)
+
 
 data class TmdbImage(
     val file_path: String,

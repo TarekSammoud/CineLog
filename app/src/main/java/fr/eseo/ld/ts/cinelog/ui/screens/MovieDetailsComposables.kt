@@ -75,6 +75,7 @@ import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.ReviewViewModel
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
@@ -82,6 +83,9 @@ import androidx.compose.material3.Card
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.text.style.TextAlign
+import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
 
 
 // --- YouTube Trailer Box ---
@@ -151,6 +155,8 @@ fun StaticMovieDetailScreen(
     val errorMessage by viewModel.errorMessage.observeAsState()
     val trailerId by viewModel.youtubeTrailerId.observeAsState(null)
     val context = LocalContext.current
+    val actorImages by viewModel.actorImages.observeAsState(emptyMap())
+
 
     // Fetch movie
     LaunchedEffect(Unit) {
@@ -161,6 +167,9 @@ fun StaticMovieDetailScreen(
     LaunchedEffect(movie) {
         movie?.let {
             viewModel.fetchYoutubeTrailer(it.title, it.year, context.getString(R.string.youtube_api_key))
+            // Add this:
+            val actors = it.actors.split(",").map { actor -> actor.trim() }
+            viewModel.fetchActorImages(actors)
         }
     }
 
@@ -244,7 +253,10 @@ fun StaticMovieDetailScreen(
                     Column {
                         Text("Genre: ${movie!!.genre}")
                         Text("Director: ${movie!!.director}")
-                        ActorsGrid(movie!!.actors)
+                        ActorsGrid(
+                            actors = movie!!.actors,
+                            actorImages = actorImages
+                        )
                         Text("IMDB Rating: ${movie!!.imdbRating}")
                     }
                     Spacer(modifier = Modifier.height(24.dp))
@@ -259,50 +271,58 @@ fun StaticMovieDetailScreen(
 
 
 @Composable
-fun ActorsGrid(actors: String) {
+fun ActorsGrid(
+    actors: String,
+    actorImages: Map<String, String?>,
+    modifier: Modifier = Modifier
+) {
     val actorList = actors.split(",").map { it.trim() }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier = Modifier
+    LazyRow (
+        modifier = modifier
             .fillMaxWidth()
-            .height(200.dp), // adjust height as needed
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        userScrollEnabled = false // integrate with main scroll
+            .height(220.dp), // Increased slightly to accommodate content
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp) // Optional: padding at start/end
     ) {
-        items(actorList.size) { index ->
-            val actor = actorList[index]
+        items(actorList) { actor ->
+            val imageUrl = actorImages[actor]
+
             Card(
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.padding(4.dp)
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .width(120.dp) // Fixed width for each card
+                    .padding(vertical = 4.dp)
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(8.dp)
                 ) {
-                    // Placeholder image
-                    Image(
-                        painter = painterResource(R.drawable.ic_launcher_foreground),
+                    AsyncImage(
+                        model = imageUrl ?: R.drawable.ic_launcher_foreground,
                         contentDescription = actor,
                         contentScale = ContentScale.Crop,
+                        placeholder = painterResource(R.drawable.ic_launcher_foreground),
+                        error = painterResource(R.drawable.ic_launcher_foreground),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(2f / 3f)
-                            .clip(MaterialTheme.shapes.medium),
+                            .size(width = 104.dp, height = 156.dp) // 2:3 aspect ratio (104:156)
+                            .clip(RoundedCornerShape(8.dp))
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = actor,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelMedium,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.width(104.dp)
                     )
                 }
             }
         }
     }
 }
+
 
 
 // --- Reviews Section ---

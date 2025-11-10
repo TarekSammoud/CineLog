@@ -104,6 +104,26 @@ class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
             }
         }
     }
+// In ImdbViewModel.kt
+
+    private val _actorImages = MutableLiveData<Map<String, String?>>()
+    val actorImages: LiveData<Map<String, String?>> = _actorImages
+
+    fun fetchActorImages(actorNames: List<String>) {
+        viewModelScope.launch {
+            val images = mutableMapOf<String, String?>()
+            actorNames.forEach { name ->
+                try {
+                    val url = tmdbRepository.getActorByQuery(name)
+                    images[name] = url
+                } catch (e: Exception) {
+                    images[name] = null
+                }
+            }
+            _actorImages.postValue(images)
+        }
+    }
+
 
     fun fetchAllMedia() {
         _isLoading.value = true

@@ -1,5 +1,7 @@
 package fr.eseo.ld.ts.cinelog.model
 
+import com.google.gson.annotations.SerializedName
+
 data class TmdbMovie(
     val adult: Boolean,
     val backdrop_path: String?,
@@ -58,3 +60,14 @@ data class SpokenLanguage(
     val iso_639_1: String,
     val name: String
 )
+
+data class TmdbImagesResponse(
+    val results: List<TmdbActor>
+)
+
+data class TmdbActor(
+    val id: Int,
+    val name: String,
+    @SerializedName("profile_path") val profilePath: String? // note the SerializedName
+)
+

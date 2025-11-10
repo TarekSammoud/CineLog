@@ -12,6 +12,15 @@ import retrofit2.http.Query
 
 interface TmdbApiService {
 
+    @GET("search/person")
+    suspend fun searchPerson(
+        @Query("query") query: String,
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("language") language: String = "en-US",
+        @Query("page") page: Int = 1,
+        @Header("Authorization") authorization: String
+    ): TmdbImagesResponse
+
     // Get movie details by TMDb ID
     @GET("movie/{movie_id}")
     suspend fun getMovieById(
@@ -34,4 +43,6 @@ object TmdbApiServiceImpl {
     val tmdbApi: TmdbApiService by lazy {
         tmdbRetrofit.create(TmdbApiService::class.java)
     }
+
+
 }
