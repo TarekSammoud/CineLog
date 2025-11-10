@@ -11,6 +11,8 @@ import fr.eseo.ld.ts.cinelog.network.ImdbApiService
 import fr.eseo.ld.ts.cinelog.network.ImdbApiServiceImpl
 import fr.eseo.ld.ts.cinelog.network.OmdbApiService
 import fr.eseo.ld.ts.cinelog.network.OmdbApiServiceImpl
+import fr.eseo.ld.ts.cinelog.network.TmdbApiService
+import fr.eseo.ld.ts.cinelog.network.TmdbApiServiceImpl
 import javax.inject.Singleton
 
 @Module
@@ -28,4 +30,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOmdbApi(): OmdbApiService = OmdbApiServiceImpl.omdbApi
+
+    @Provides
+    @Singleton
+    fun provideTmdbApi(): TmdbApiService = TmdbApiServiceImpl.tmdbApi
 }

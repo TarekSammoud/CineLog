@@ -7,13 +7,16 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import fr.eseo.ld.ts.cinelog.R
 import fr.eseo.ld.ts.cinelog.model.Media
 import fr.eseo.ld.ts.cinelog.model.OmdbMovie
+import fr.eseo.ld.ts.cinelog.model.TmdbMovie
 import fr.eseo.ld.ts.cinelog.repositories.ImdbRepository
+import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
 import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
+                                        private val tmdbRepository: TmdbRepository,
     private val youtubeRepository: YoutubeRepository) : ViewModel() {
 
     private val _mediaList = MutableLiveData<List<Media>>()
@@ -38,6 +41,30 @@ class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
                 _youtubeTrailerId.value = videoId
             } catch (e: Exception) {
                 _youtubeTrailerId.value = null
+            }
+        }
+    }
+
+    private val _tmdbMovie = MutableLiveData<TmdbMovie?>()
+
+    fun fetchTmdbMovieByImdbId(imdbId: Int) {
+        _isLoading.value = true
+        _errorMessage.value = null
+
+        viewModelScope.launch {
+            try {
+                val result = tmdbRepository.getMovieById(imdbId)
+                if (result != null) {
+                    _tmdbMovie.value = result
+                    Log.d("TmdbViewModel", "Fetched TMDb movie: ${result.title}")
+                } else {
+                    _errorMessage.value = "Movie not found"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Unknown error"
+                Log.e("TmdbViewModel", "Error fetching TMDb movie: ${e.message}", e)
+            } finally {
+                _isLoading.value = false
             }
         }
     }

@@ -1,4 +1,9 @@
 <resources>
     <string name="app_name">CineLog</string>
+    <string name="default_web_client_id">87206889419-rc3sr8kgkimubs0hqj8a6d0ai5p51cv9.apps.googleusercontent.com</string>
+
+
+    <string name="omdb_api_key">1dd589a1</string>
+    <string name="youtube_api_key">AIzaSyC6fLWzDLY9vXO3cCilGMuK2rgp0nrktLU</string>
 
 </resources>

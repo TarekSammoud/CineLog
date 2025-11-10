@@ -8,6 +8,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.UserProfileChangeRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import fr.eseo.ld.ts.cinelog.data.AuthState
 import fr.eseo.ld.ts.cinelog.repositories.AuthenticationRepository
@@ -110,6 +111,12 @@ class AuthenticationViewModel @Inject constructor(
                 val result = authenticationRepository.signUpWithEmail(email, password).await()
                 val user = result.user
                 if (user != null) {
+
+                    val profileUpdates = UserProfileChangeRequest.Builder()
+                        .setDisplayName(pseudo)
+                        .build()
+                    user.updateProfile(profileUpdates).await()
+
                     val userData = mapOf(
                         "pseudo" to pseudo,
                         "email" to email
