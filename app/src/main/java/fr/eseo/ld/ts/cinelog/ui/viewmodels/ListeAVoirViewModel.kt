@@ -2,22 +2,23 @@ package fr.eseo.ld.ts.cinelog.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import fr.eseo.ld.ts.cinelog.data.ListeAVoir
 import fr.eseo.ld.ts.cinelog.model.Media
 import fr.eseo.ld.ts.cinelog.model.Image
 import fr.eseo.ld.ts.cinelog.repositories.ListeAVoirRepository
-import fr.eseo.ld.ts.cinelog.repositories.ImdbRepository
+import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import dagger.hilt.android.lifecycle.HiltViewModel
 
 @HiltViewModel
 class ListeAVoirViewModel @Inject constructor(
     private val repository: ListeAVoirRepository,
-    private val imdbRepository: ImdbRepository
+    private val tmdbRepository: TmdbRepository
 ) : ViewModel() {
+
     private val _watchlist = MutableStateFlow<List<ListeAVoir>>(emptyList())
     val watchlist: StateFlow<List<ListeAVoir>> = _watchlist
 
@@ -34,36 +35,34 @@ class ListeAVoirViewModel @Inject constructor(
                 val watchlistEntries = repository.getWatchlistForUser(userId)
                 _watchlist.value = watchlistEntries
 
-                // Charger les détails des films depuis l'API IMDB
                 val mediaDetails = mutableListOf<Media>()
-                watchlistEntries.forEach { entry ->
+
+                for (entry in watchlistEntries) {
                     try {
-                        // Récupérer les détails du film depuis l'API
-                        val allMedia = imdbRepository.fetchAllMedia()
-                        val media = allMedia.titles?.find { it.id == entry.movieId }
-                        if (media != null) {
-                            mediaDetails.add(media)
-                        } else {
-                            // Créer un média par défaut si non trouvé
-                            mediaDetails.add(
-                                Media(
-                                    id = entry.movieId,
-                                    primaryTitle = entry.movieId,
-                                    primaryImage = null
-                                )
-                            )
-                        }
+                        val movie = tmdbRepository.getMovieById(entry.movieId)
+                        val media = Media(
+                            id = movie.id.toString(),
+
+                            primaryTitle = movie.title ?: "Untitled",
+                            primaryImage = movie.poster_path?.let {
+                                Image(url = "https://image.tmdb.org/t/p/w500$it",
+                                    width = 500,
+                                    height = 0) // or 0 if not nullable)
+                            }
+                        )
+                        mediaDetails.add(media)
                     } catch (e: Exception) {
-                        // En cas d'erreur, ajouter quand même un média par défaut
+                        // fallback media if TMDB fetch fails
                         mediaDetails.add(
                             Media(
                                 id = entry.movieId,
-                                primaryTitle = entry.movieId,
+                                primaryTitle = "Unknown Movie (${entry.movieId})",
                                 primaryImage = null
                             )
                         )
                     }
                 }
+
                 _mediaList.value = mediaDetails
             } finally {
                 _isLoading.value = false

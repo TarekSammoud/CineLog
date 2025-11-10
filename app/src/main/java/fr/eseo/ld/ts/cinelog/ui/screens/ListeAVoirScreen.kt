@@ -20,6 +20,7 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import fr.eseo.ld.ts.cinelog.R
 import fr.eseo.ld.ts.cinelog.model.Media
+import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.ListeAVoirViewModel
 
@@ -104,7 +105,7 @@ private fun WatchlistMediaGrid(
             WatchlistMediaCard(
                 media = media,
                 onClick = {
-                    navController.navigate("DETAILS_SCREEN/${media.id}")
+                    navController.navigate("${CineLogScreens.DETAILS_SCREEN.name}/tmdb/${media.id}")
                 }
             )
         }

@@ -23,7 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import fr.eseo.ld.ts.cinelog.R
-import fr.eseo.ld.ts.cinelog.model.Media
+import fr.eseo.ld.ts.cinelog.model.TmdbMovie
 import fr.eseo.ld.ts.cinelog.viewmodel.ImdbViewModel
 import kotlinx.coroutines.delay
 
@@ -34,50 +34,55 @@ fun SearchScreen(
     viewModel: ImdbViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    // Live data from the viewmodel
-    val mediaList by viewModel.mediaList.observeAsState(emptyList())
+    val movieList by viewModel.movieList.observeAsState(emptyList())
     val isLoading by viewModel.isLoading.observeAsState(false)
     val errorMessage by viewModel.errorMessage.observeAsState()
 
-    // Query states
+    // Search query
     var query by remember { mutableStateOf(TextFieldValue("")) }
     var debouncedQuery by remember { mutableStateOf("") }
 
+    // Debounce user input
     LaunchedEffect(query.text) {
         delay(250)
         debouncedQuery = query.text
     }
 
+    // Load initial trending movies
     LaunchedEffect(Unit) {
-        viewModel.fetchAllMedia()
+        viewModel.loadFirstPage("Trending")
     }
 
     fun onQueryChange(newValue: TextFieldValue) {
         query = newValue
     }
 
-    val filtered = remember(mediaList, debouncedQuery) {
-        if (debouncedQuery.isBlank()) mediaList
-        else mediaList.filter { it.primaryTitle.contains(debouncedQuery, ignoreCase = true) }
+    val filteredMovies = remember(movieList, debouncedQuery) {
+        if (debouncedQuery.isBlank()) movieList
+        else movieList.filter {
+            it.title.contains(debouncedQuery, ignoreCase = true)
+        }
     }
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Scaffold(
             topBar = {
-
                 TopAppBar(
-                    title = { Text(text = "Recherche",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )},
-                    navigationIcon = {}
+                    title = {
+                        Text(
+                            text = "Recherche",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 )
             }
         ) { padding ->
-            Column(modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(12.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(12.dp)
             ) {
                 OutlinedTextField(
                     value = query,
@@ -89,7 +94,7 @@ fun SearchScreen(
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                     trailingIcon = {
                         if (query.text.isNotEmpty()) {
-                            IconButton(onClick = { onQueryChange(TextFieldValue("") ) }) {
+                            IconButton(onClick = { onQueryChange(TextFieldValue("")) }) {
                                 Icon(Icons.Default.Clear, contentDescription = "Clear")
                             }
                         }
@@ -99,17 +104,29 @@ fun SearchScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                when {
-                    isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                    errorMessage != null -> Text("Erreur : $errorMessage", color = MaterialTheme.colorScheme.error)
-                    else -> {
-                        if (filtered.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when {
+                        isLoading && movieList.isEmpty() -> {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        errorMessage != null -> {
+                            Text(
+                                text = "Erreur : $errorMessage",
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+
+                        filteredMovies.isEmpty() -> {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text("Aucun résultat")
                             }
-                        } else {
+                        }
+
+                        else -> {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -118,10 +135,22 @@ fun SearchScreen(
                                     .fillMaxSize()
                                     .padding(top = 4.dp)
                             ) {
-                                items(filtered, key = { it.id }) { media ->
-                                    SearchMediaCard(media = media, onClick = {
-                                        navController.navigate("DETAILS_SCREEN/${media.id}")
+                                items(items = filteredMovies, key = { it.id }) { movie ->
+                                    SearchMovieCard(movie = movie, onClick = {
+                                        navController.navigate("DETAILS_SCREEN/tmdb/${movie.id}")
                                     })
+                                }
+                            }
+
+                            if (isLoading && movieList.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.BottomCenter)
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
                                 }
                             }
                         }
@@ -133,8 +162,8 @@ fun SearchScreen(
 }
 
 @Composable
-private fun SearchMediaCard(
-    media: Media,
+private fun SearchMovieCard(
+    movie: TmdbMovie,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -146,8 +175,8 @@ private fun SearchMediaCard(
         onClick = onClick
     ) {
         AsyncImage(
-            model = media.primaryImage?.url,
-            contentDescription = media.primaryTitle,
+            model = "https://image.tmdb.org/t/p/w500${movie.poster_path}",
+            contentDescription = movie.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
             placeholder = painterResource(R.drawable.ic_launcher_foreground),

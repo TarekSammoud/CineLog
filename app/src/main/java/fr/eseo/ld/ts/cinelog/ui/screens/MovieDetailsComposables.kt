@@ -83,6 +83,8 @@ import androidx.compose.material3.Card
 
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.text.style.TextAlign
@@ -91,6 +93,8 @@ import androidx.lifecycle.MutableLiveData
 import fr.eseo.ld.ts.cinelog.model.TmdbMovie
 import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
 import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
+import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
+import fr.eseo.ld.ts.cinelog.ui.viewmodels.ListeAVoirViewModel
 
 
 // --- YouTube Trailer Box ---
@@ -151,8 +155,10 @@ fun YoutubeTrailerBox(trailerId: String?) {
 fun StaticMovieDetailScreen(
     viewModel: ImdbViewModel,
     navController: NavController,
+    modifier: Modifier = Modifier,
     tmdbId: String,
-    modifier: Modifier = Modifier
+    authenticationViewModel: AuthenticationViewModel = hiltViewModel(),
+    watchlistViewModel: ListeAVoirViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
     val movie by viewModel.tmdbMovie.observeAsState()
@@ -161,6 +167,22 @@ fun StaticMovieDetailScreen(
     val trailerId by viewModel.youtubeTrailerId.observeAsState()
     val actorImages by viewModel.actorImages.observeAsState(emptyMap())
     val context = LocalContext.current
+
+
+    // Get user ID for watchlist
+    val user by authenticationViewModel.user.collectAsState()
+    val userId = user?.uid ?: ""
+
+    // Get watchlist to check if movie is bookmarked
+    val watchlist by watchlistViewModel.watchlist.collectAsState()
+    val isBookmarked = watchlist.any { it.movieId == tmdbId }
+
+    // Load watchlist
+    LaunchedEffect(userId) {
+        if (userId.isNotBlank()) {
+            watchlistViewModel.loadWatchlist(userId)
+        }
+    }
 
     // Load movie
     LaunchedEffect(Unit) { viewModel.fetchTmdbMovieByTmdbId(tmdbId) }
@@ -182,14 +204,44 @@ fun StaticMovieDetailScreen(
     Surface(modifier.fillMaxSize()) {
         Column {
             // Top bar
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
                 IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.Default.KeyboardArrowLeft, "Back")
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowLeft,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
                 }
-                Spacer(Modifier.width(8.dp))
-                Text(movie?.title ?: "Movie Details", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = movie?.title ?: "Movie Details",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                // Bookmark button
+                IconButton(
+                    onClick = {
+                        if (isBookmarked) {
+                            watchlistViewModel.removeFromWatchlist(userId, tmdbId)
+                        } else {
+                            watchlistViewModel.addToWatchlist(userId, tmdbId)
+                        }
+                    },
+                    enabled = userId.isNotBlank()
+                ) {
+                    Icon(
+                        imageVector = if (isBookmarked) Icons.Filled.BookmarkAdded else Icons.Filled.BookmarkAdd,
+                        contentDescription = if (isBookmarked) "Déjà dans la watchlist" else "Ajouter à la watchlist",
+                        tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
-
             when {
                 isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
                 error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Error: $error", color = MaterialTheme.colorScheme.error) }

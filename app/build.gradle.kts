@@ -84,7 +84,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.android.gms:play-services-auth")
+    implementation("com.google.android.gms:play-services-auth:21.1.1")
     implementation("androidx.compose.material:material-icons-extended:1.6.1")
 
 

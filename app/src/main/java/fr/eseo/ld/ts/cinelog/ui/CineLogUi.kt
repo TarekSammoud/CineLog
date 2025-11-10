@@ -111,6 +111,15 @@ fun CineLogUi() {
             }
         }
 
+        composable(CineLogScreens.LISTE_A_VOIR_SCREEN.name){
+            CineLogWithBottomBar(navController = navController) { paddind ->
+                ListeAVoirScreen(
+                    authenticationViewModel = authViewModel,
+                    navController = navController
+                )
+            }
+        }
+
         composable(CineLogScreens.SEARCH_SCREEN.name) {
             CineLogWithBottomBar(navController = navController) { padding ->
                 SearchScreen(
