@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/app/src/main/java/fr/eseo/ld/ts/cinelog/data/AppDatabase.kt">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/app/src/main/java/fr/eseo/ld/ts/cinelog/data/AppDatabase.kt" />
+              <option name="updatedContent" value="package fr.eseo.ld.ts.cinelog.data&#10;&#10;import androidx.room.Database&#10;import androidx.room.RoomDatabase&#10;import fr.eseo.ld.ts.cinelog.model.User&#10;&#10;@Database(entities = [User::class], version = 1)&#10;abstract class AppDatabase : RoomDatabase() {&#10;    abstract fun userDao(): UserDao&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

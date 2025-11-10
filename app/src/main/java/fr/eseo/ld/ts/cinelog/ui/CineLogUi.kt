@@ -110,6 +110,14 @@ fun CineLogUi() {
                 )
             }
         }
+
+        composable(CineLogScreens.SEARCH_SCREEN.name) {
+            CineLogWithBottomBar(navController = navController) { padding ->
+                SearchScreen(
+                    navController = navController
+                )
+            }
+        }
     }
 }
 
