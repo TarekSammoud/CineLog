@@ -15,6 +15,12 @@ class TmdbRepository @Inject constructor(
         return TmdbApiServiceImpl.tmdbApi.getMovieById(movieId, hardcodedBearer)
     }
 
+    suspend fun getSimilarMovies(movieId: String): List<TmdbMovie> {
+        return TmdbApiServiceImpl.tmdbApi.getSimilarMovies(movieId, hardcodedBearer)
+            .results
+            .take(10) // limit to 10
+    }
+
     suspend fun getActorByQuery(query: String): String? {
         val response = TmdbApiServiceImpl.tmdbApi.searchPerson(
             query = query,

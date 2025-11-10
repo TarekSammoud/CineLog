@@ -3,6 +3,7 @@ package fr.eseo.ld.ts.cinelog.network
 import fr.eseo.ld.ts.cinelog.model.MediaResponse
 import fr.eseo.ld.ts.cinelog.model.TmdbImagesResponse
 import fr.eseo.ld.ts.cinelog.model.TmdbMovie
+import fr.eseo.ld.ts.cinelog.model.TmdbSimilarMoviesResponse
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
@@ -20,6 +21,14 @@ interface TmdbApiService {
         @Query("page") page: Int = 1,
         @Header("Authorization") authorization: String
     ): TmdbImagesResponse
+
+    @GET("movie/{movie_id}/similar")
+    suspend fun getSimilarMovies(
+        @Path("movie_id") movieId: String,
+        @Header("Authorization") authorization: String,
+        @Query("language") language: String = "en-US",
+        @Query("page") page: Int = 1
+    ): TmdbSimilarMoviesResponse
 
     // Get movie details by TMDb ID
     @GET("movie/{movie_id}")

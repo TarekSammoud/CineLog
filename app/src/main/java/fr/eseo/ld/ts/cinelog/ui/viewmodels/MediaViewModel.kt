@@ -33,6 +33,8 @@ class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
     private val _youtubeTrailerId = MutableLiveData<String?>()
     val youtubeTrailerId: LiveData<String?> = _youtubeTrailerId
 
+
+
     fun fetchYoutubeTrailer(title: String, year: String, apiKey: String) {
         viewModelScope.launch {
             try {
@@ -45,7 +47,36 @@ class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
         }
     }
 
+    private val _similarMovies = MutableLiveData<List<TmdbMovie>>()
+    val similarMovies: LiveData<List<TmdbMovie>> = _similarMovies
+
+    fun fetchSimilarMovies(tmdbId: String) {
+        Log.d("ImdbViewModel", "fetchSimilarMovies() called with TMDB ID = $tmdbId")
+        viewModelScope.launch {
+            try {
+                Log.d("ImdbViewModel", "Calling tmdbRepository.getSimilarMovies($tmdbId)…")
+                val movies = tmdbRepository.getSimilarMovies(tmdbId)
+
+                Log.d(
+                    "ImdbViewModel",
+                    "Received ${movies.size} similar movies → " +
+                            movies.joinToString(", ") { it.title }
+                )
+
+                _similarMovies.postValue(movies)
+            } catch (e: Exception) {
+                Log.e(
+                    "ImdbViewModel",
+                    "Failed to load similar movies for TMDB ID $tmdbId",
+                    e
+                )
+                _similarMovies.postValue(emptyList())
+            }
+        }
+    }
+
     private val _tmdbMovie = MutableLiveData<TmdbMovie?>()
+    val tmdbMovie: LiveData<TmdbMovie?> = _tmdbMovie
 
     fun fetchTmdbMovieByImdbId(imdbId: String) {
         _isLoading.value = true
@@ -53,6 +84,7 @@ class ImdbViewModel @Inject constructor(private val repository: ImdbRepository,
 
         viewModelScope.launch {
             try {
+
                 val result = tmdbRepository.getMovieById(imdbId)
                 if (result != null) {
                     _tmdbMovie.value = result

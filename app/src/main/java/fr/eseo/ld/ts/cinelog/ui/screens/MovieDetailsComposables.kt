@@ -3,6 +3,7 @@ package fr.eseo.ld.ts.cinelog.ui.screens
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -85,6 +86,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.text.style.TextAlign
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import fr.eseo.ld.ts.cinelog.model.TmdbMovie
 import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
 
 
@@ -149,6 +153,8 @@ fun StaticMovieDetailScreen(
     movieId: String,
     modifier: Modifier = Modifier
 ) {
+
+// In fetchTmdbMovieByImdbId():
     val scrollState = rememberScrollState()
     val movie by viewModel.omdbMovie.observeAsState(null)
     val isLoading by viewModel.isLoading.observeAsState(false)
@@ -157,6 +163,7 @@ fun StaticMovieDetailScreen(
     val context = LocalContext.current
     val actorImages by viewModel.actorImages.observeAsState(emptyMap())
 
+    val tmdbMovie by viewModel.tmdbMovie.observeAsState(null) // Add this LiveData
 
     // Fetch movie
     LaunchedEffect(Unit) {
@@ -170,6 +177,12 @@ fun StaticMovieDetailScreen(
             // Add this:
             val actors = it.actors.split(",").map { actor -> actor.trim() }
             viewModel.fetchActorImages(actors)
+        }
+    }
+
+    LaunchedEffect(tmdbMovie) {
+        tmdbMovie?.let { tmdb ->
+            viewModel.fetchSimilarMovies(tmdb.id.toString())
         }
     }
 
@@ -261,6 +274,12 @@ fun StaticMovieDetailScreen(
                     }
                     Spacer(modifier = Modifier.height(24.dp))
                     MovieReviewSection(movieId = movieId)
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    SimilarMoviesSection(
+                        similarMovies = viewModel.similarMovies.observeAsState(emptyList()).value,
+                        navController = navController
+                    )
                 }
             }
         }
@@ -399,6 +418,81 @@ fun RatingStar(
                         val newRating = if (rating >= starValue - 0.5f) starValue - 0.5f else starValue
                         onRatingChanged(newRating)
                     }
+            )
+        }
+    }
+}
+
+@Composable
+fun SimilarMoviesSection(
+    similarMovies: List<TmdbMovie>,
+    navController: NavController,
+    modifier: Modifier = Modifier
+) {
+    if (similarMovies.isEmpty()) return
+
+    Column(modifier = modifier) {
+        Text(
+            text = "Similar Movies",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
+        ) {
+            items(similarMovies) { movie ->
+                SimilarMovieCard(movie = movie, navController = navController)
+            }
+        }
+    }
+}
+@Composable
+fun SimilarMovieCard(
+    movie: TmdbMovie,
+    navController: NavController
+) {
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .clickable(
+                onClick = {
+                    Log.d("TMDB","${movie.imdb_id}")
+                    Log.d("TMDB ID","${movie.id}")
+
+                    navController.navigate("DETAILS_SCREEN/${movie.imdb_id ?: movie.id}")
+                }
+            ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column {
+            AsyncImage(
+                model = movie.poster_path?.let { "https://image.tmdb.org/t/p/w342$it" }
+                    ?: R.drawable.ic_launcher_foreground,
+                contentDescription = movie.title,
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.ic_launcher_foreground),
+                error = painterResource(R.drawable.ic_launcher_foreground),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(210.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = movie.title,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .padding(bottom = 8.dp)
             )
         }
     }

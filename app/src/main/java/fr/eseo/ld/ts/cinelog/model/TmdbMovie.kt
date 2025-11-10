@@ -61,6 +61,13 @@ data class SpokenLanguage(
     val name: String
 )
 
+data class TmdbSimilarMoviesResponse(
+    val page: Int,
+    val results: List<TmdbMovie>,
+    val total_pages: Int,
+    val total_results: Int
+)
+
 data class TmdbImagesResponse(
     val results: List<TmdbActor>
 )
