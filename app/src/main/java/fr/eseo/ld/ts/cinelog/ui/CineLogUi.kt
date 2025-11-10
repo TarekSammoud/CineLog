@@ -34,12 +34,10 @@ fun CineLogUi() {
     // Reactive navigation based on auth state
     LaunchedEffect(authState) {
         when (authState) {
-            AuthState.LOADING -> {
-                // stay on a splash/loading screen if needed
-            }
+            AuthState.LOADING -> { /* optionally show a splash */ }
             AuthState.LOGGED_IN -> {
                 navController.navigate(CineLogScreens.SUMMARY_SCREEN.name) {
-                    popUpTo(0) // clear backstack
+                    popUpTo(0)
                 }
             }
             AuthState.LOGGED_OUT -> {
@@ -52,7 +50,7 @@ fun CineLogUi() {
 
     NavHost(navController = navController, startDestination = "auth") {
 
-        // --- AUTH FLOW ---
+        // --- AUTH FLOW (no bottom bar) ---
         composable("auth") {
             MainAuthenticationScreen(
                 authenticationViewModel = authViewModel,
@@ -77,7 +75,7 @@ fun CineLogUi() {
             )
         }
 
-        // --- MAIN APP FLOW ---
+        // --- MAIN APP FLOW (with bottom bar) ---
         composable(CineLogScreens.SUMMARY_SCREEN.name) {
             val imdbViewModel: ImdbViewModel = hiltViewModel()
             CineLogWithBottomBar(navController = navController) { padding ->
@@ -101,11 +99,13 @@ fun CineLogUi() {
                         application.getString(R.string.omdb_api_key)
                     )
                 }
-                StaticMovieDetailScreen(
-                    viewModel = imdbViewModel,
-                    navController = navController,
-                    movieId = movieId
-                )
+                CineLogWithBottomBar(navController = navController) { padding ->
+                    StaticMovieDetailScreen(
+                        viewModel = imdbViewModel,
+                        navController = navController,
+                        movieId = movieId
+                    )
+                }
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -115,6 +115,7 @@ fun CineLogUi() {
                 }
             }
         }
+
         composable(CineLogScreens.PROFIL_SCREEN.name) {
             CineLogWithBottomBar(navController = navController) { padding ->
                 ProfilScreen(
@@ -125,3 +126,4 @@ fun CineLogUi() {
         }
     }
 }
+

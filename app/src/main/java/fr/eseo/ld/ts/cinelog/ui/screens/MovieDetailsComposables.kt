@@ -81,7 +81,7 @@ import androidx.compose.material3.Card
 
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
 
 
 // --- YouTube Trailer Box ---
@@ -154,7 +154,6 @@ fun StaticMovieDetailScreen(
 
     // Fetch movie
     LaunchedEffect(Unit) {
-      //  viewModel.fetchOmdbMovie(movieId, context.getString(R.string.omdb_api_key))
         viewModel.fetchTmdbMovieByImdbId(movieId)
     }
 
@@ -166,65 +165,96 @@ fun StaticMovieDetailScreen(
     }
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        when {
-            isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            errorMessage != null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Error: $errorMessage", color = MaterialTheme.colorScheme.error)
-            }
-            movie != null -> Column(
+        Column {
+            // --- Top Bar with Back Button ---
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(16.dp)
+                    .fillMaxWidth()
+                    .padding(8.dp)
             ) {
-                YoutubeTrailerBox(trailerId = trailerId)
-                Spacer(modifier = Modifier.height(16.dp))
-                // Poster & details
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                    AsyncImage(
-                        model = movie!!.poster,
-                        contentDescription = movie!!.title,
-                        contentScale = ContentScale.Crop,
-                        placeholder = painterResource(R.drawable.ic_launcher_foreground),
-                        error = painterResource(R.drawable.ic_launcher_foreground),
-                        modifier = Modifier
-                            .width(150.dp)
-                            .height(225.dp)
-                            .clip(MaterialTheme.shapes.medium)
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowLeft, // make sure you have a back arrow drawable
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = movie!!.title,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = movie?.title ?: "Movie Details",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            when {
+                isLoading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+                errorMessage != null -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Error: $errorMessage", color = MaterialTheme.colorScheme.error)
+                }
+                movie != null -> Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(16.dp)
+                ) {
+                    YoutubeTrailerBox(trailerId = trailerId)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    // Poster & details
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                        AsyncImage(
+                            model = movie!!.poster,
+                            contentDescription = movie!!.title,
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(R.drawable.ic_launcher_foreground),
+                            error = painterResource(R.drawable.ic_launcher_foreground),
+                            modifier = Modifier
+                                .width(150.dp)
+                                .height(225.dp)
+                                .clip(MaterialTheme.shapes.medium)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = movie!!.plot,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 6,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = movie!!.title,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = movie!!.plot,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 6,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Release Date: ${movie!!.released}", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Column {
+                        Text("Genre: ${movie!!.genre}")
+                        Text("Director: ${movie!!.director}")
+                        ActorsGrid(movie!!.actors)
+                        Text("IMDB Rating: ${movie!!.imdbRating}")
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                    MovieReviewSection(movieId = movieId)
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Release Date: ${movie!!.released}", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(16.dp))
-                Column {
-                    Text("Genre: ${movie!!.genre}")
-                    Text("Director: ${movie!!.director}")
-                    ActorsGrid(movie!!.actors)
-                    Text("IMDB Rating: ${movie!!.imdbRating}")
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-                MovieReviewSection(movieId = movieId)
             }
         }
     }
 }
+
 
 
 
