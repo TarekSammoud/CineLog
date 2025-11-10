@@ -8,6 +8,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import fr.eseo.ld.ts.cinelog.R
+import fr.eseo.ld.ts.cinelog.data.User
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -43,6 +44,23 @@ class AuthenticationRepository @Inject constructor(
             .requestEmail()
             .build()
         return GoogleSignIn.getClient(context, gso)
+    }
+
+    suspend fun getUserData(uid: String): User? {
+        val doc = FirebaseFirestore.getInstance().collection("users").document(uid).get().await()
+        return if (doc.exists()) {
+            User(
+                nom = doc.getString("nom") ?: "",
+                prenom = doc.getString("prenom") ?: "",
+                email = doc.getString("email") ?: "",
+                pseudo = doc.getString("pseudo") ?: "",
+                photoUrl = doc.getString("photoUrl")
+            )
+        } else null
+    }
+
+    suspend fun saveUserData(uid: String, userData: Map<String, Any?>) {
+        FirebaseFirestore.getInstance().collection("users").document(uid).set(userData).await()
     }
 
 }

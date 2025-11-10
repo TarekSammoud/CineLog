@@ -80,10 +80,12 @@ fun CineLogUi() {
         // --- MAIN APP FLOW ---
         composable(CineLogScreens.SUMMARY_SCREEN.name) {
             val imdbViewModel: ImdbViewModel = hiltViewModel()
-            SummaryScreen(
-                viewModel = imdbViewModel,
-                navController = navController
-            )
+            CineLogWithBottomBar(navController = navController) { padding ->
+                SummaryScreen(
+                    viewModel = imdbViewModel,
+                    navController = navController
+                )
+            }
         }
 
         composable(
@@ -111,6 +113,14 @@ fun CineLogUi() {
                 ) {
                     Text("Movie not found.")
                 }
+            }
+        }
+        composable(CineLogScreens.PROFIL_SCREEN.name) {
+            CineLogWithBottomBar(navController = navController) { padding ->
+                ProfilScreen(
+                    authenticationViewModel = authViewModel,
+                    navController = navController
+                )
             }
         }
     }
