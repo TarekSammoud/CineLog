@@ -251,15 +251,6 @@ fun CineLogWithBottomBar(
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = {
-                    navController.navigate("PROFIL_SCREEN")
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Profil"
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
 
                 IconButton(onClick = {
                     navController.navigate("LISTE_A_VOIR_SCREEN")
@@ -270,6 +261,16 @@ fun CineLogWithBottomBar(
                     )
                 }
 
+                Spacer(modifier = Modifier.weight(1f))
+
+                IconButton(onClick = {
+                    navController.navigate("PROFIL_SCREEN")
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Profil"
+                    )
+                }
 
             }
         }
