@@ -44,9 +44,9 @@ fun SummaryScreen(
 ) {
     var selectedFilter by remember { mutableStateOf("Trending") }
 
-    val movieList by viewModel.movieList.observeAsState(emptyList())
-    val isLoading by viewModel.isLoading.observeAsState(false)
-    val errorMessage by viewModel.errorMessage.observeAsState()
+    val movieList by viewModel.movieList.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     val isLoadingMore = isLoading && movieList.isNotEmpty() // true only during pagination
 
@@ -128,6 +128,7 @@ fun SummaryScreen(
                             movieList = movieList,
                             isLoadingMore = isLoadingMore,
                             navController = navController,
+                            viewModel = viewModel,
                             onLoadMore = { viewModel.loadNextPage() },
                             modifier = Modifier.padding(innerPadding)
                         )
@@ -172,9 +173,10 @@ private fun SummaryScreenMediaList(
     isLoadingMore: Boolean,
     navController: NavController,
     onLoadMore: () -> Unit,
+    viewModel: ImdbViewModel,
     modifier: Modifier = Modifier
 ) {
-    val listState = rememberLazyGridState()
+    val listState by viewModel.lazyGridState
 
     // Trigger load more when near bottom
     LaunchedEffect(listState) {
@@ -208,7 +210,8 @@ private fun SummaryScreenMediaList(
             )
         }
 
-        if (isLoadingMore) {
+        if (isLoadingMore && listState.firstVisibleItemIndex > 10) {
+
             item(span = { GridItemSpan(3) }) {
                 Box(
                     modifier = Modifier

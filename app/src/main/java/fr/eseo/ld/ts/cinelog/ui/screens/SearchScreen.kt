@@ -34,9 +34,9 @@ fun SearchScreen(
     viewModel: ImdbViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    val movieList by viewModel.movieList.observeAsState(emptyList())
-    val isLoading by viewModel.isLoading.observeAsState(false)
-    val errorMessage by viewModel.errorMessage.observeAsState()
+    val movieList by viewModel.movieList.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     // Search query
     var query by remember { mutableStateOf(TextFieldValue("")) }

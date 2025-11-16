@@ -162,8 +162,8 @@ fun StaticMovieDetailScreen(
 ) {
     val scrollState = rememberScrollState()
     val movie by viewModel.tmdbMovie.observeAsState()
-    val isLoading by viewModel.isLoading.observeAsState(false)
-    val error by viewModel.errorMessage.observeAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.errorMessage.collectAsState()
     val trailerId by viewModel.youtubeTrailerId.observeAsState()
     val actorImages by viewModel.actorImages.observeAsState(emptyMap())
     val context = LocalContext.current

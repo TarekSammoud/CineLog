@@ -1,6 +1,9 @@
 package fr.eseo.ld.ts.cinelog.viewmodel
 
 import android.util.Log
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,6 +14,9 @@ import fr.eseo.ld.ts.cinelog.model.TmdbMovie
 import fr.eseo.ld.ts.cinelog.repositories.ImdbRepository
 import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
 import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 @HiltViewModel
@@ -19,14 +25,15 @@ class ImdbViewModel @Inject constructor(
     private val youtubeRepository: YoutubeRepository
 ) : ViewModel() {
 
+    private val _lazyGridState = mutableStateOf(LazyGridState())
+    val lazyGridState: State<LazyGridState> = _lazyGridState
 
     // ── UI state ─────────────────────────────────────
-    private val _isLoading = MutableLiveData<Boolean>()
-    val isLoading: LiveData<Boolean> = _isLoading
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _errorMessage = MutableLiveData<String?>()
-    val errorMessage: LiveData<String?> = _errorMessage
-
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     // Movie detail
     private val _tmdbMovie = MutableLiveData<TmdbMovie?>()
     val tmdbMovie: LiveData<TmdbMovie?> = _tmdbMovie
@@ -44,8 +51,8 @@ class ImdbViewModel @Inject constructor(
     val actorImages: LiveData<Map<String, String?>> = _actorImages
 
     // List for SummaryScreen
-    private val _movieList = MutableLiveData<List<TmdbMovie>>()
-    val movieList: LiveData<List<TmdbMovie>> = _movieList
+    private val _movieList = MutableStateFlow<List<TmdbMovie>>(emptyList())
+    val movieList: StateFlow<List<TmdbMovie>> = _movieList
 
     // --- Pagination state ---
     private var currentPage = 1
@@ -92,11 +99,11 @@ class ImdbViewModel @Inject constructor(
                 currentPage = page
 
                 val current = _movieList.value.orEmpty()
-                _movieList.postValue(newMovies)
+                _movieList.value = current + newMovies
 
                 Log.d("ImdbViewModel", "Loaded page $page → ${newMovies.size} movies (total: ${current.size + newMovies.size})")
             } catch (e: Exception) {
-                _errorMessage.postValue("Failed to load page $page: ${e.message}")
+                _errorMessage.value = "Failed to load page $page: ${e.message}"
                 Log.e("ImdbViewModel", "Pagination error", e)
             } finally {
                 isLoadingPage = false
@@ -118,7 +125,7 @@ class ImdbViewModel @Inject constructor(
             } catch (e: Exception) {
                 val errorMsg = e.message ?: "Unknown error"
                 Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
-                _errorMessage.postValue(errorMsg)
+                _errorMessage.value = errorMsg
             } finally {
                 _isLoading.value = false
                 Log.d("ImdbViewModel", "Finished fetchTmdbMovieByTmdbId for ID: $tmdbId")
@@ -138,7 +145,7 @@ class ImdbViewModel @Inject constructor(
             } catch (e: Exception) {
                 val errorMsg = e.message ?: "Unknown error"
                 Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
-                _errorMessage.postValue(errorMsg)
+                _errorMessage.value = errorMsg
             }finally {
                 Log.d("ImdbViewModel", "Finished fetchYoutubeTrailer for title: $title, year: $year")
             }
@@ -156,7 +163,7 @@ class ImdbViewModel @Inject constructor(
             } catch (e: Exception) {
                 val errorMsg = e.message ?: "Unknown error"
                 Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
-                _errorMessage.postValue(errorMsg)
+                _errorMessage.value = errorMsg
             } finally {
                 Log.d("ImdbViewModel", "Finished fetchSimilarMovies for TMDB ID: $tmdbId")
             }
@@ -176,7 +183,7 @@ class ImdbViewModel @Inject constructor(
                 } catch (e: Exception) {
                     val errorMsg = e.message ?: "Unknown error"
                     Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
-                    _errorMessage.postValue(errorMsg)
+                    _errorMessage.value = errorMsg
                 }
             }
             _actorImages.postValue(map)
@@ -191,11 +198,11 @@ class ImdbViewModel @Inject constructor(
         try {
             val list = tmdbRepository.getTrendingMovies(currentPage)
             Log.d("ImdbViewModel", "Successfully fetched ${list.size} trending movies")
-            _movieList.postValue(list)
+            _movieList.value = list
         } catch (e: Exception) {
             val errorMsg = e.message ?: "Unknown error"
             Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
-            _errorMessage.postValue(errorMsg)
+            _errorMessage.value = errorMsg
         } finally {
             _isLoading.value = false
             Log.d("ImdbViewModel", "Finished fetchTrendingMovies")
@@ -208,11 +215,11 @@ class ImdbViewModel @Inject constructor(
         try {
             val list = tmdbRepository.getPopularMovies(currentPage)
             Log.d("ImdbViewModel", "Successfully fetched ${list.size} popular movies")
-            _movieList.postValue(list)
+            _movieList.value = list
         } catch (e: Exception) {
             val errorMsg = e.message ?: "Unknown error"
             Log.e("ImdbViewModel", "ERROR in fetchTrendingMovies: $errorMsg", e)
-            _errorMessage.postValue(errorMsg)
+            _errorMessage.value = errorMsg
         } finally {
             _isLoading.value = false
             Log.d("ImdbViewModel", "Finished fetchPopularMovies")
