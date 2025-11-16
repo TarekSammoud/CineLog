@@ -16,6 +16,10 @@ class TmdbRepository @Inject constructor(
         return TmdbApiServiceImpl.tmdbApi.getMovieById(movieId, hardcodedBearer)
     }
 
+    suspend fun discoverMovies(page: Int): List<TmdbMovie> {
+        return TmdbApiServiceImpl.tmdbApi.getDiscoverMovies(page = page,hardcodedBearer).results
+    }
+
     suspend fun getTrendingMovies(page: Int): List<TmdbMovie> {
         Log.d("TmdbRepo", "Fetching trending page $page")
         return TmdbApiServiceImpl.tmdbApi.getTrendingMovies(hardcodedBearer, page).results

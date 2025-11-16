@@ -63,6 +63,8 @@ fun CineLogUi() {
             )
         }
 
+
+
         composable("signup") {
             SignUpScreen(
                 authenticationViewModel = authViewModel,
@@ -83,6 +85,12 @@ fun CineLogUi() {
                     viewModel = imdbViewModel,
                     navController = navController
                 )
+            }
+        }
+
+        composable(CineLogScreens.DISCOVERY_SCREEN.name) {
+            CineLogWithBottomBar(navController) { padding ->
+                DiscoveryScreen(navController = navController)
             }
         }
 

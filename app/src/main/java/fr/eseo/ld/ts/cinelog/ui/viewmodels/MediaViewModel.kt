@@ -62,6 +62,42 @@ class ImdbViewModel @Inject constructor(
 
     private var currentFilter = "Trending"
 
+
+    private val _discoveryMovies = MutableStateFlow<List<TmdbMovie>>(emptyList())
+    val discoveryMovies: StateFlow<List<TmdbMovie>> = _discoveryMovies
+
+    private val TAG = "DiscoveryVM"   // <-- add this at the top of the class
+
+    fun loadDiscoveryMovies(page: Int = 1) {
+        Log.d(TAG, "loadDiscoveryMovies(page = $page) – START")
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Calling tmdbRepository.discoverMovies(page = $page)…")
+                val newMovies = tmdbRepository.discoverMovies(page)
+
+                // 1. Log raw response size
+                Log.d(TAG, "Repository returned ${newMovies.size} movies for page $page")
+
+                // 2. (Optional) Log a few movie titles so you can see real data
+                newMovies.take(3).forEachIndexed { i, m ->
+                    Log.d(TAG, "   [$i] ${m.title} (id=${m.id})")
+                }
+
+                // 3. Append to existing list
+                val current = _discoveryMovies.value
+                Log.d(TAG, "Current list size BEFORE append: ${current.size}")
+
+                _discoveryMovies.value = current + newMovies
+
+                Log.d(TAG,
+                    "Discovery list UPDATED – total movies now: ${_discoveryMovies.value.size}"
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load discovery movies (page $page)", e)
+                _errorMessage.value = e.message
+            }
+        }
+    }
     // --- Reset & fetch first page ---
     fun loadFirstPage(filter: String) {
         currentFilter = filter

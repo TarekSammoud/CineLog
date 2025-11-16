@@ -76,6 +76,7 @@ import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.ReviewViewModel
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 
 import androidx.compose.foundation.lazy.items
@@ -83,13 +84,18 @@ import androidx.compose.material3.Card
 
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkAdded
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import fr.eseo.ld.ts.cinelog.model.Review
 import fr.eseo.ld.ts.cinelog.model.TmdbMovie
 import fr.eseo.ld.ts.cinelog.repositories.TmdbRepository
 import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
@@ -275,8 +281,10 @@ fun StaticMovieDetailScreen(
                         Text("Rating: ${"%.1f".format(m.vote_average)} / 10")
 
                         Spacer(Modifier.height(24.dp))
-                        MovieReviewSection(movieId = tmdbId)   // reviews keyed by TMDB ID
-
+                        MovieReviewSection(
+                            movieId = tmdbId,
+                            posterUrl = movie?.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" }   // ← NEW
+                        )
                         Spacer(Modifier.height(24.dp))
                         SimilarMoviesSection(
                             similarMovies = viewModel.similarMovies.observeAsState(emptyList()).value,
@@ -351,6 +359,7 @@ fun ActorsGrid(
 @Composable
 fun MovieReviewSection(
     movieId: String,
+    posterUrl: String?,
     viewModel: ReviewViewModel = hiltViewModel()
 ) {
     val reviews by viewModel.reviews.collectAsState()
@@ -358,42 +367,159 @@ fun MovieReviewSection(
     var newComment by remember { mutableStateOf("") }
     var newRating by remember { mutableStateOf(0f) }
 
-    LaunchedEffect(movieId) {
-        viewModel.loadReviews(movieId)
-    }
+    LaunchedEffect(movieId) { viewModel.loadReviews(movieId) }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text("Average Rating: ${"%.1f".format(averageRating)} / 5", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        reviews.forEach { review ->
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                Text("${review.username} (${review.rating}/5)", fontWeight = FontWeight.Bold)
-                Text(review.comment)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        // ── Average rating ─────────────────────────────────────
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = "${"%.1f".format(averageRating)} / 5",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (reviews.isNotEmpty()) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "(${reviews.size} review${if (reviews.size > 1) "s" else ""})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Add a Review", style = MaterialTheme.typography.titleMedium)
-        Text("Your Rating:", style = MaterialTheme.typography.bodyMedium)
+
+        // ── List of reviews ───────────────────────────────────
+        if (reviews.isEmpty()) {
+            Text(
+                text = "No reviews yet. Be the first!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+        } else {
+            LazyColumn (
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp) // limit height → scrollable
+            ) {
+                items(reviews) { review ->
+                    ReviewCard(review = review)
+                }
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
+
+        // ── Add a new review ───────────────────────────────────
+        Text(
+            "Add a Review",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Rating selector
+        Text("Your rating:", style = MaterialTheme.typography.bodyMedium)
         RatingStar(
             rating = newRating,
-            onRatingChanged = { newRating = it }
+            onRatingChanged = { newRating = it },
         )
-        TextField(
+
+        // Comment field
+        OutlinedTextField(
             value = newComment,
             onValueChange = { newComment = it },
-            placeholder = { Text("Write your comment") },
-            modifier = Modifier.fillMaxWidth()
+            placeholder = { Text("Write your comment…") },
+            singleLine = false,
+            maxLines = 4,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
         )
+
+        // Submit button
         Button(
             onClick = {
-                viewModel.submitReview(movieId, newRating.toDouble(), newComment)
-                newComment = ""
-                newRating = 0f
+                if (newRating > 0f && newComment.isNotBlank()) {
+                    viewModel.submitReview(
+                        movieId = movieId,
+                        rating = newRating.toDouble(),
+                        comment = newComment,
+                        posterPath = posterUrl
+                    )
+                    newComment = ""
+                    newRating = 0f
+                }
             },
-            modifier = Modifier.padding(top = 8.dp)
+            // …
         ) { Text("Submit Review") }
     }
 }
+
+@Composable
+private fun ReviewCard(review: Review) {
+    Card(
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Optional avatar placeholder
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = review.username.take(1).uppercase(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = review.username,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${review.rating}/5",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = review.comment,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+
 
 // --- Rating Star Composable (full + half stars) ---
 @Composable

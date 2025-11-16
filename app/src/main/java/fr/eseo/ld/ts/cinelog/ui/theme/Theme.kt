@@ -54,14 +54,14 @@ private val lightScheme = lightColorScheme(
 )
 
 private val darkScheme = darkColorScheme(
-    primary = primaryDark,
-    onPrimary = onPrimaryDark,
-    primaryContainer = primaryContainerDark,
-    onPrimaryContainer = onPrimaryContainerDark,
-    secondary = secondaryDark,
-    onSecondary = onSecondaryDark,
-    secondaryContainer = secondaryContainerDark,
-    onSecondaryContainer = onSecondaryContainerDark,
+    primary = Color.Black,                    // ← Default button background
+    onPrimary = Color.White,
+    primaryContainer = Color.White,           // ← Pressed / hovered state background
+    onPrimaryContainer = Color.Black,
+    secondary = Color.Black,
+    onSecondary = Color.White,
+    secondaryContainer = Color.White,
+    onSecondaryContainer = Color.Black,
     tertiary = tertiaryDark,
     onTertiary = onTertiaryDark,
     tertiaryContainer = tertiaryContainerDark,
@@ -256,7 +256,7 @@ val unspecified_scheme = ColorFamily(
 )
 @Composable
 fun AppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {

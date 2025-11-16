@@ -28,6 +28,7 @@ interface TmdbApiService {
         @Query("page") page: Int = 1
     ): TmdbPageResponse
 
+
     @GET("movie/popular")
     suspend fun getPopularMovies(
         @Header("Authorization") auth: String,
@@ -40,6 +41,16 @@ interface TmdbApiService {
         @Query("language") language: String = "en-US",
         @Query("page") page: Int = 1
     ): TmdbSimilarMoviesResponse
+
+    @GET("discover/movie")
+    suspend fun getDiscoverMovies(
+        @Query("page") page: Int = 1,
+        @Header("Authorization") authToken: String,
+        @Query("language") language: String = "en-US",
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("include_adult") includeAdult: Boolean = true,
+        @Query("include_video") includeVideo: Boolean = false
+    ): TmdbPageResponse
 
     // Get movie details by TMDb ID
     @GET("movie/{movie_id}")

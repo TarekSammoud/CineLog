@@ -46,6 +46,14 @@ class AuthenticationRepository @Inject constructor(
         return GoogleSignIn.getClient(context, gso)
     }
 
+    suspend fun getUserById(uid: String): User? {
+        return try {
+            val doc = FirebaseFirestore.getInstance().collection("users").document(uid).get().await()
+            doc.toObject(User::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
     suspend fun getUserData(uid: String): User? {
         val doc = FirebaseFirestore.getInstance().collection("users").document(uid).get().await()
         return if (doc.exists()) {

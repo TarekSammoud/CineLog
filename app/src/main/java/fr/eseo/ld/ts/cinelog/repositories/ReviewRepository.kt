@@ -1,5 +1,7 @@
 package fr.eseo.ld.ts.cinelog.repositories
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import fr.eseo.ld.ts.cinelog.model.Review
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -9,6 +11,24 @@ import javax.inject.Singleton
 class ReviewRepository  @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
+
+
+    suspend fun getReviewsByUser(uid: String): List<Review> {
+        return try {
+            val snapshot = firestore
+                .collection("user_reviews")
+                .document(uid)
+                .collection("reviews")
+                .orderBy("timestamp", Query.Direction.DESCENDING)  // newest first
+                .get()
+                .await()
+
+            snapshot.toObjects(Review::class.java)
+        } catch (e: Exception) {
+            Log.e("ReviewRepo", "Failed to load user reviews", e)
+            emptyList()
+        }
+    }
 
     suspend fun getReviews(movieId: String): List<Review> {
         val snapshot = firestore.collection("movies")
@@ -23,6 +43,12 @@ class ReviewRepository  @Inject constructor(
     suspend fun addReview(movieId: String, review: Review) {
         firestore.collection("movies")
             .document(movieId)
+            .collection("reviews")
+            .add(review)
+            .await()
+
+        firestore.collection("user_reviews")
+            .document(review.userId)
             .collection("reviews")
             .add(review)
             .await()
