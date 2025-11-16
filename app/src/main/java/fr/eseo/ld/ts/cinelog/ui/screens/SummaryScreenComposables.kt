@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -247,7 +248,27 @@ fun CineLogWithBottomBar(
                 }) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Recherche"
+                        contentDescription = "Search"
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    navController.navigate("DISCOVERY_SCREEN")
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Explore,
+                        contentDescription = "Discover"
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    navController.navigate("PROFIL_SCREEN")
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Profile"
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -257,20 +278,10 @@ fun CineLogWithBottomBar(
                 }) {
                     Icon(
                         imageVector = Icons.Default.BookmarkAdd,
-                        contentDescription = "Liste à voir"
+                        contentDescription = "Watch later"
                     )
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                IconButton(onClick = {
-                    navController.navigate("PROFIL_SCREEN")
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Profil"
-                    )
-                }
 
             }
         }
