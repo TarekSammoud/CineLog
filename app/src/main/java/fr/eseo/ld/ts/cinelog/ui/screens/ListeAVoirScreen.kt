@@ -48,15 +48,7 @@ fun ListeAVoirScreen(
                 title = { Text(text = "Ma liste de films à voir",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
-                ) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowLeft,
-                            contentDescription = "Retour"
-                        )
-                    }
-                }
+                ) }
             )
         }
     ) { padding ->

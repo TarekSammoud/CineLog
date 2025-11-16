@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BookmarkAdd
-import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -253,21 +252,6 @@ fun CineLogWithBottomBar(
                 }
                 Spacer(modifier = Modifier.weight(1f))
 
-                IconButton(onClick = { navController.navigate("DISCOVERY_SCREEN") }) {
-                    Icon(Icons.Default.Explore, "Discover")
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = {
-                    navController.navigate("PROFIL_SCREEN")
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Profil"
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-
                 IconButton(onClick = {
                     navController.navigate("LISTE_A_VOIR_SCREEN")
                 }) {
@@ -277,6 +261,16 @@ fun CineLogWithBottomBar(
                     )
                 }
 
+                Spacer(modifier = Modifier.weight(1f))
+
+                IconButton(onClick = {
+                    navController.navigate("PROFIL_SCREEN")
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Profil"
+                    )
+                }
 
             }
         }
