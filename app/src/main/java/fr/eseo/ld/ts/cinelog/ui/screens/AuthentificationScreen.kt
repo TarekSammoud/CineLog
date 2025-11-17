@@ -368,7 +368,7 @@ fun MainAuthenticationScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Bienvenue",
+                    text = "Welcome",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White
@@ -388,7 +388,7 @@ fun MainAuthenticationScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Mot de passe") },
+                    label = { Text("Password") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -431,7 +431,7 @@ fun MainAuthenticationScreen(
                             .fillMaxWidth()
                             .height(50.dp)
                     ) {
-                        Text("S'inscrire")
+                        Text("Sign up")
                     }
                     Spacer(modifier = Modifier.height(12.dp))
 

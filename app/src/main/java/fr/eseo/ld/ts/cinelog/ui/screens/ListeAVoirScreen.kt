@@ -45,7 +45,7 @@ fun ListeAVoirScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Ma liste de films à voir",
+                title = { Text(text = "Bookmarked movies",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 ) }
