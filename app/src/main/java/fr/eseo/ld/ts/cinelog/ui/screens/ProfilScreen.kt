@@ -38,9 +38,6 @@ import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
 import java.text.SimpleDateFormat
 import java.util.*
 
-// ---------------------------------------------------------------------
-//  ProfilScreen – main entry point
-// ---------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfilScreen(
@@ -48,18 +45,16 @@ fun ProfilScreen(
     reviewViewModel: ReviewViewModel = hiltViewModel(),
     navController: NavController
 ) {
-    // ----- Firestore & Firebase user -----
+
     val firestoreUser by authenticationViewModel.firestoreUser.collectAsState<User?>()
     val firebaseUser by authenticationViewModel.user.collectAsState()
 
-    // ----- Edit form state (hidden until gear tapped) -----
     var editMode by rememberSaveable { mutableStateOf(false) }
     var nom by rememberSaveable { mutableStateOf(firestoreUser?.nom ?: "") }
     var prenom by rememberSaveable { mutableStateOf(firestoreUser?.prenom ?: "") }
     var email by rememberSaveable { mutableStateOf(firestoreUser?.email ?: "") }
     var pseudo by rememberSaveable { mutableStateOf(firestoreUser?.pseudo ?: "") }
 
-    // ----- Photo picker -----
     val context = LocalContext.current
     var showSheet by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
@@ -82,16 +77,12 @@ fun ProfilScreen(
         return contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
     }
 
-    // ----- Load my reviews (by current UID) -----
     val currentUid = firebaseUser?.uid.orEmpty()
     LaunchedEffect(currentUid) {
         if (currentUid.isNotBlank()) reviewViewModel.loadMyReviews(currentUid)
     }
     val myReviews by reviewViewModel.myReviews.collectAsState(emptyList())
 
-    // -----------------------------------------------------------------
-    //  UI
-    // -----------------------------------------------------------------
     Scaffold(
         topBar = {
             TopAppBar(
@@ -102,11 +93,7 @@ fun ProfilScreen(
                         fontWeight = FontWeight.Bold
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Back")
-                    }
-                },
+
                 actions = {
                     IconButton(onClick = { editMode = !editMode }) {
                         Icon(
@@ -125,45 +112,51 @@ fun ProfilScreen(
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // -------------------- Avatar --------------------
+
             item {
-                Card(
-                    modifier = Modifier
-                        .size(150.dp)
-                        .padding(top = 24.dp, bottom = 16.dp)
-                        .clickable { showSheet = true },
-                    shape = CircleShape,
-                    elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+                Box(
+                    modifier = Modifier.padding(top = 24.dp, bottom = 16.dp)
                 ) {
-                    if (firestoreUser?.photoUrl?.isNotEmpty() == true) {
-                        AsyncImage(
-                            model = firestoreUser?.photoUrl,
-                            contentDescription = "Photo de profil",
+                    Card(
+                        modifier = Modifier
+                            .size(150.dp)
+                            .clickable { showSheet = true },
+                        shape = CircleShape,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+                    ) {
+                        Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "Default avatar",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(8.dp),
-                            tint = Color.White
-                        )
+                                .padding(8.dp)
+                        ) {
+                            if (firestoreUser?.photoUrl?.isNotEmpty() == true) {
+                                AsyncImage(
+                                    model = firestoreUser?.photoUrl,
+                                    contentDescription = "Profile picture",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = "Default avatar",
+                                    modifier = Modifier.fillMaxSize(),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            // -------------------- Static info (always visible) --------------------
+
             item {
                 ProfileInfoRow(label = "Username", value = firestoreUser?.pseudo ?: "–", icon = Icons.Default.Person)
-                ProfileInfoRow(label = "E‑mail", value = firestoreUser?.email ?: "–", icon = Icons.Default.Email)
+                ProfileInfoRow(label = "Email", value = firestoreUser?.email ?: "–", icon = Icons.Default.Email)
             }
 
-            // -------------------- Edit form (shown only in editMode) --------------------
             if (editMode) {
                 item {
                     Card(
@@ -175,28 +168,28 @@ fun ProfilScreen(
                     ) {
                         Column(Modifier.padding(20.dp)) {
                             EditableProfilInfoRow(
-                                label = "Nom",
+                                label = "Last name",
                                 value = nom,
                                 onValueChange = { nom = it },
                                 icon = Icons.Default.Face
                             )
                             HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                             EditableProfilInfoRow(
-                                label = "Prénom",
+                                label = "First name",
                                 value = prenom,
                                 onValueChange = { prenom = it },
                                 icon = Icons.Default.Face
                             )
                             HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                             EditableProfilInfoRow(
-                                label = "Adresse e‑mail",
+                                label = "Email",
                                 value = email,
                                 onValueChange = { email = it },
                                 icon = Icons.Default.Email
                             )
                             HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                             EditableProfilInfoRow(
-                                label = "Pseudo",
+                                label = "Username",
                                 value = pseudo,
                                 onValueChange = { pseudo = it },
                                 icon = Icons.Default.Person
@@ -221,7 +214,6 @@ fun ProfilScreen(
                 }
             }
 
-            // -------------------- My Reviews --------------------
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
@@ -248,7 +240,6 @@ fun ProfilScreen(
                 }
             }
 
-            // -------------------- Logout --------------------
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 OutlinedButton(
@@ -262,7 +253,6 @@ fun ProfilScreen(
         }
     }
 
-    // -------------------- Photo picker bottom sheet --------------------
     if (showSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
@@ -292,7 +282,7 @@ fun ProfilScreen(
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.CameraAlt, tint = Color.White, contentDescription = null, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(16.dp))
                     Text("Take a picture", style = MaterialTheme.typography.bodyLarge)
                 }
@@ -306,7 +296,7 @@ fun ProfilScreen(
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Collections,tint = Color.White,  contentDescription = null, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(16.dp))
                     Text("Choose from gallery", style = MaterialTheme.typography.bodyLarge)
                 }
@@ -315,9 +305,6 @@ fun ProfilScreen(
     }
 }
 
-// ---------------------------------------------------------------------
-//  Helper composables
-// ---------------------------------------------------------------------
 
 @Composable
 private fun ProfileInfoRow(label: String, value: String, icon: ImageVector) {
@@ -327,7 +314,7 @@ private fun ProfileInfoRow(label: String, value: String, icon: ImageVector) {
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = Color.White)
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(12.dp))
         Column {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -356,7 +343,7 @@ private fun EditableProfilInfoRow(
             onValueChange = onValueChange,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(icon,tint = Color.White, contentDescription = label) }
+            leadingIcon = { Icon(icon, contentDescription = label) }
         )
     }
 }
@@ -389,7 +376,7 @@ private fun ReviewCard(review: Review,navController: NavController) {
                         Icon(
                             imageVector = if (idx < review.rating.toInt()) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -407,9 +394,6 @@ private fun ReviewCard(review: Review,navController: NavController) {
     }
 }
 
-// ---------------------------------------------------------------------
-//  Photo URL update (kept unchanged)
-// ---------------------------------------------------------------------
 private fun updatePhotoUrl(
     uri: Uri,
     authenticationViewModel: AuthenticationViewModel
