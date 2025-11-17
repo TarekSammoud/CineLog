@@ -66,7 +66,24 @@ class ImdbViewModel @Inject constructor(
     private val _discoveryMovies = MutableStateFlow<List<TmdbMovie>>(emptyList())
     val discoveryMovies: StateFlow<List<TmdbMovie>> = _discoveryMovies
 
+    fun searchMovies(query: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            try {
+                val response = tmdbRepository.searchMovies(query = query, page = 1)
+                _movieList.value = response
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Erreur réseau"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     private val TAG = "DiscoveryVM"   // <-- add this at the top of the class
+
 
     fun loadDiscoveryMovies(page: Int = 1) {
         Log.d(TAG, "loadDiscoveryMovies(page = $page) – START")

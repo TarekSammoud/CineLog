@@ -238,7 +238,7 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = pseudo,
                     onValueChange = { pseudo = it },
-                    label = { Text("Pseudo") },
+                    label = { Text("User Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -246,7 +246,7 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = nom,
                     onValueChange = { nom = it },
-                    label = { Text("Nom") },
+                    label = { Text("Last Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -254,7 +254,7 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = prenom,
                     onValueChange = { prenom = it },
-                    label = { Text("Prénom") },
+                    label = { Text("First Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -270,7 +270,7 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Mot de passe") },
+                    label = { Text("Password") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()

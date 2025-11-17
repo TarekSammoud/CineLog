@@ -38,31 +38,27 @@ fun SearchScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    // Search query
     var query by remember { mutableStateOf(TextFieldValue("")) }
     var debouncedQuery by remember { mutableStateOf("") }
 
-    // Debounce user input
+    // Debounce logic
     LaunchedEffect(query.text) {
-        delay(250)
-        debouncedQuery = query.text
+        delay(400) // slightly longer than 250ms feels better for API calls
+        debouncedQuery = query.text.trim()
     }
 
-    // Load initial trending movies
-    LaunchedEffect(Unit) {
-        viewModel.loadFirstPage("Trending")
-    }
-
-    fun onQueryChange(newValue: TextFieldValue) {
-        query = newValue
-    }
-
-    val filteredMovies = remember(movieList, debouncedQuery) {
-        if (debouncedQuery.isBlank()) movieList
-        else movieList.filter {
-            it.title.contains(debouncedQuery, ignoreCase = true)
+    // Trigger API calls based on debounced query
+    LaunchedEffect(debouncedQuery) {
+        if (debouncedQuery.isBlank()) {
+            // Show trending when query is empty
+            viewModel.loadFirstPage("Trending")
+        } else {
+            // Real TMDB search
+            viewModel.searchMovies(debouncedQuery)
         }
     }
+
+    val displayedMovies = movieList
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Scaffold(
@@ -70,7 +66,7 @@ fun SearchScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Recherche",
+                            text = "Search",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -82,36 +78,36 @@ fun SearchScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(12.dp)
+                    .padding(horizontal = 12.dp)
             ) {
                 OutlinedTextField(
                     value = query,
-                    onValueChange = { onQueryChange(it) },
+                    onValueChange = { query = it },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    placeholder = { Text("Rechercher un film...") },
+                    placeholder = { Text("Search for a movie...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                     trailingIcon = {
                         if (query.text.isNotEmpty()) {
-                            IconButton(onClick = { onQueryChange(TextFieldValue("")) }) {
+                            IconButton(onClick = { query = TextFieldValue("") }) {
                                 Icon(Icons.Default.Clear, contentDescription = "Clear")
                             }
                         }
                     },
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     when {
-                        isLoading && movieList.isEmpty() -> {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        isLoading && displayedMovies.isEmpty() -> {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator()
                             }
                         }
-
                         errorMessage != null -> {
                             Text(
                                 text = "Erreur : $errorMessage",
@@ -119,36 +115,46 @@ fun SearchScreen(
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
-
-                        filteredMovies.isEmpty() -> {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Aucun résultat")
+                        displayedMovies.isEmpty() -> {
+                            Column(
+                                modifier = Modifier.align(Alignment.Center),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                )
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    text = if (debouncedQuery.isBlank()) "Loading trending..." else "No results",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
                             }
                         }
-
                         else -> {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = 4.dp)
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                items(items = filteredMovies, key = { it.id }) { movie ->
+                                items(items = displayedMovies, key = { it.id }) { movie ->
                                     SearchMovieCard(movie = movie, onClick = {
                                         navController.navigate("DETAILS_SCREEN/tmdb/${movie.id}")
                                     })
                                 }
                             }
 
-                            if (isLoading && movieList.isNotEmpty()) {
+                            // Bottom loading indicator when loading more
+                            if (isLoading && displayedMovies.isNotEmpty()) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .align(Alignment.BottomCenter)
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
+                                        .padding(16.dp)
                                 ) {
                                     CircularProgressIndicator()
                                 }

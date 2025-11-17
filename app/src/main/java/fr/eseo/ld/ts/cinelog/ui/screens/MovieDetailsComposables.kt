@@ -1,12 +1,9 @@
 package fr.eseo.ld.ts.cinelog.ui.screens
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,16 +21,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,36 +39,21 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import fr.eseo.ld.ts.cinelog.viewmodel.ImdbViewModel
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import fr.eseo.ld.ts.cinelog.network.ImdbApiServiceImpl
-import fr.eseo.ld.ts.cinelog.repositories.ImdbRepository
 import fr.eseo.ld.ts.cinelog.R
-import fr.eseo.ld.ts.cinelog.network.YoutubeApi
-import fr.eseo.ld.ts.cinelog.repositories.YoutubeRepository
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.ReviewViewModel
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -82,8 +61,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkAdded
@@ -103,7 +80,6 @@ import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.ListeAVoirViewModel
 
 
-// --- YouTube Trailer Box ---
 @Composable
 fun YoutubeTrailerBox(trailerId: String?) {
     val context = LocalContext.current
@@ -202,8 +178,6 @@ fun StaticMovieDetailScreen(
                 context.getString(R.string.youtube_api_key)
             )
             viewModel.fetchSimilarMovies(it.id.toString())
-            // Optional: fetch credits for real actor list
-            // viewModel.fetchActorImages(emptyList())
         }
     }
 
@@ -243,8 +217,8 @@ fun StaticMovieDetailScreen(
                 ) {
                     Icon(
                         imageVector = if (isBookmarked) Icons.Filled.BookmarkAdded else Icons.Filled.BookmarkAdd,
-                        contentDescription = if (isBookmarked) "Déjà dans la watchlist" else "Ajouter à la watchlist",
-                        tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                        contentDescription = if (isBookmarked) "Already in watchlist" else "Add to watchlist",
+                        tint = if (isBookmarked) Color(0xFFFFB300) else Color.White
                     )
                 }
             }
@@ -283,7 +257,7 @@ fun StaticMovieDetailScreen(
                         Spacer(Modifier.height(24.dp))
                         MovieReviewSection(
                             movieId = tmdbId,
-                            posterUrl = movie?.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" }   // ← NEW
+                            posterUrl = movie?.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" }
                         )
                         Spacer(Modifier.height(24.dp))
                         SimilarMoviesSection(
@@ -382,7 +356,7 @@ fun MovieReviewSection(
             Icon(
                 imageVector = Icons.Default.Star,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(4.dp))
@@ -492,7 +466,7 @@ private fun ReviewCard(review: Review) {
                     Text(
                         text = review.username.take(1).uppercase(),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
+                        color = Color.White
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -533,8 +507,8 @@ fun RatingStar(
         for (i in 1..maxRating) {
             val starValue = i.toFloat()
             val iconTint = when {
-                rating >= starValue -> MaterialTheme.colorScheme.secondary // full star
-                rating >= starValue - 0.5f -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f) // half star
+                rating >= starValue -> Color.Yellow // full star
+                rating >= starValue - 0.5f -> Color.Yellow.copy(alpha = 0.5f) // half star
                 else -> Color.Gray
             }
             Icon(

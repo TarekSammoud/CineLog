@@ -25,6 +25,10 @@ class TmdbRepository @Inject constructor(
         return TmdbApiServiceImpl.tmdbApi.getTrendingMovies(hardcodedBearer, page).results
     }
 
+    suspend fun searchMovies(query: String, page: Int = 1): List<TmdbMovie> {
+        return TmdbApiServiceImpl.tmdbApi.searchMovie(query = query, hardcodedBearer,page = page).results
+    }
+
     suspend fun getPopularMovies(page: Int): List<TmdbMovie> {
         Log.d("TmdbRepo", "Fetching popular page $page")
         return TmdbApiServiceImpl.tmdbApi.getPopularMovies(hardcodedBearer, page).results

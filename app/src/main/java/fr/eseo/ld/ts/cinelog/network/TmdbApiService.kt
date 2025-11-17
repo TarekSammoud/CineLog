@@ -59,6 +59,14 @@ interface TmdbApiService {
         @Header("Authorization") authToken: String,
         @Query("language") language: String = "en-US"
     ): TmdbMovie
+
+    @GET("search/movie")
+    suspend fun searchMovie(
+        @Query("query") query: String,
+        @Header("Authorization") authToken: String,
+        @Query("page") page: Int = 1,
+        @Query("include_adult") includeAdult: Boolean = false
+    ): TmdbPageResponse
 }
 
 object TmdbApiServiceImpl {

@@ -151,7 +151,7 @@ fun ProfilScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(8.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = Color.White
                         )
                     }
                 }
@@ -159,7 +159,7 @@ fun ProfilScreen(
 
             // -------------------- Static info (always visible) --------------------
             item {
-                ProfileInfoRow(label = "Pseudo", value = firestoreUser?.pseudo ?: "–", icon = Icons.Default.Person)
+                ProfileInfoRow(label = "Username", value = firestoreUser?.pseudo ?: "–", icon = Icons.Default.Person)
                 ProfileInfoRow(label = "E‑mail", value = firestoreUser?.email ?: "–", icon = Icons.Default.Email)
             }
 
@@ -292,7 +292,7 @@ fun ProfilScreen(
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.CameraAlt, tint = Color.White, contentDescription = null, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(16.dp))
                     Text("Take a picture", style = MaterialTheme.typography.bodyLarge)
                 }
@@ -306,7 +306,7 @@ fun ProfilScreen(
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.Collections,tint = Color.White,  contentDescription = null, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(16.dp))
                     Text("Choose from gallery", style = MaterialTheme.typography.bodyLarge)
                 }
@@ -327,7 +327,7 @@ private fun ProfileInfoRow(label: String, value: String, icon: ImageVector) {
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Icon(icon, contentDescription = null, tint = Color.White)
         Spacer(Modifier.width(12.dp))
         Column {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -356,7 +356,7 @@ private fun EditableProfilInfoRow(
             onValueChange = onValueChange,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(icon, contentDescription = label) }
+            leadingIcon = { Icon(icon,tint = Color.White, contentDescription = label) }
         )
     }
 }
@@ -389,7 +389,7 @@ private fun ReviewCard(review: Review,navController: NavController) {
                         Icon(
                             imageVector = if (idx < review.rating.toInt()) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
