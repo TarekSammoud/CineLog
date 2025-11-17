@@ -9,15 +9,20 @@ import fr.eseo.ld.ts.cinelog.repositories.ReviewRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.Date
 import javax.inject.Inject
-
 @HiltViewModel
 class ReviewViewModel @Inject constructor(
     private val reviewRepository: ReviewRepository,
     private val authRepo: AuthenticationRepository
 ) : ViewModel() {
 
-    private val userCache = mutableMapOf<String, String>()
+    private val userDataCache = mutableMapOf<String, UserData>()
+
+    private data class UserData(
+        val pseudo: String,
+        val photoUrl: String?
+    )
 
     private val _reviews = MutableStateFlow<List<Review>>(emptyList())
     val reviews: StateFlow<List<Review>> = _reviews
@@ -30,8 +35,7 @@ class ReviewViewModel @Inject constructor(
 
     fun loadMyReviews(uid: String) {
         viewModelScope.launch {
-            val list = reviewRepository.getReviewsByUser(uid)
-            _myReviews.value = list
+            _myReviews.value = reviewRepository.getReviewsByUser(uid)
         }
     }
 
@@ -40,38 +44,48 @@ class ReviewViewModel @Inject constructor(
             try {
                 val list = reviewRepository.getReviews(movieId)
 
-                // Fetch pseudo for each review
-                val reviewsWithPseudo = list.mapNotNull { review ->
-                    val pseudo = userCache.getOrPut(review.userId) {
-                        authRepo.getUserById(review.userId)?.pseudo ?: "Anonymous"
+                val reviewsWithData = list.map { review ->
+                    val userData = userDataCache.getOrPut(review.userId) {
+                        val user = authRepo.getUserById(review.userId)
+                        UserData(
+                            pseudo = user?.pseudo ?: "Anonymous",
+                            photoUrl = user?.photoUrl
+                        )
                     }
-                    review.copy(username = pseudo)
+
+                    review.copy(
+                        username = userData.pseudo,
+                        profilePicUrl = userData.photoUrl
+                    )
                 }
 
-                _reviews.value = reviewsWithPseudo
-                _averageRating.value = if (reviewsWithPseudo.isEmpty()) 0.0
-                else reviewsWithPseudo.map { it.rating }.average()
+                _reviews.value = reviewsWithData
+                _averageRating.value = if (reviewsWithData.isEmpty()) 0.0
+                else reviewsWithData.map { it.rating }.average()
+
             } catch (e: Exception) {
-                // Handle error
+                e.printStackTrace()
                 _reviews.value = emptyList()
                 _averageRating.value = 0.0
             }
         }
     }
 
-    fun submitReview(movieId: String, rating: Double, comment: String,posterPath: String?=null) {
+    fun submitReview(movieId: String, rating: Double, comment: String, posterPath: String? = null) {
         val firebaseUser = authRepo.getCurrentUser() ?: return
         viewModelScope.launch {
             val firestoreUser = authRepo.getUserById(firebaseUser.uid)
             val pseudo = firestoreUser?.pseudo ?: "Anonymous"
+            val profilePicUrl = firestoreUser?.photoUrl.orEmpty()
 
             val review = Review(
                 userId = firebaseUser.uid,
-                username = pseudo,  // ← use pseudo
+                username = pseudo,
+                profilePicUrl = profilePicUrl,
                 rating = rating,
                 comment = comment,
                 posterPath = posterPath,
-                timestamp = java.util.Date(),
+                timestamp = Date(),
                 movieId = movieId
             )
             reviewRepository.addReview(movieId, review)

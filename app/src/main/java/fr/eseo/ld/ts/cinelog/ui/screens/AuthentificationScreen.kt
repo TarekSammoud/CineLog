@@ -1,7 +1,11 @@
 package fr.eseo.ld.ts.cinelog.ui.screens
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.MediaStore
 import android.util.Log
 import android.util.Patterns
 import android.widget.Toast
@@ -9,11 +13,21 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -22,16 +36,255 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import coil3.compose.AsyncImage
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
+import fr.eseo.ld.ts.cinelog.R
+import fr.eseo.ld.ts.cinelog.network.FreeImageHostUploader
 import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
-import  fr.eseo.ld.ts.cinelog.R
-import kotlin.compareTo
-import kotlin.text.matches
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SignUpScreen(
+    authenticationViewModel: AuthenticationViewModel = hiltViewModel(),
+    onSignUpSuccess: () -> Unit,
+    onBack: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var pseudo by remember { mutableStateOf("") }
+    var nom by remember { mutableStateOf("") }
+    var prenom by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+    var isUploading by remember { mutableStateOf(false) }
+    var showPhotoPicker by remember { mutableStateOf(false) }
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedPhotoUrl by remember { mutableStateOf<String?>(null) }
+
+    // Photo upload helper
+    suspend fun uploadPhotoAndGetUrl(uri: Uri, onUrlReady: (String) -> Unit) {
+        isUploading = true
+        val result = FreeImageHostUploader.uploadImage(context, uri)
+        isUploading = false
+        result.onSuccess { url ->
+            selectedPhotoUrl = url
+            onUrlReady(url)
+            Toast.makeText(context, "Photo uploaded!", Toast.LENGTH_SHORT).show()
+        }.onFailure {
+            Toast.makeText(context, "Upload failed", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Launchers
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { /* ignored */ }
+            scope.launch { uploadPhotoAndGetUrl(it) { } }
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success && tempImageUri != null) {
+            scope.launch { uploadPhotoAndGetUrl(tempImageUri!!) { } }
+        }
+    }
+
+    fun createCameraUri(): Uri? {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, "profile_${System.currentTimeMillis()}.jpg")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        }
+        return context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.login_background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Scaffold(containerColor = Color.Transparent) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Inscription",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Profile picture
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .clickable { showPhotoPicker = true }
+                        .align(Alignment.CenterHorizontally),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selectedPhotoUrl != null) {
+                        AsyncImage(
+                            model = selectedPhotoUrl,
+                            contentDescription = "Profile picture",
+                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.AccountCircle,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(120.dp)
+                        )
+                    }
+                    if (isUploading) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    } else {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = "Change photo",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(36.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Tap to add a profile picture", color = Color.White.copy(alpha = 0.8f))
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedTextField(value = pseudo, onValueChange = { pseudo = it }, label = { Text("Username") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = nom, onValueChange = { nom = it }, label = { Text("Last Name") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = prenom, onValueChange = { prenom = it }, label = { Text("First Name") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (errorMessage.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(errorMessage, color = MaterialTheme.colorScheme.error)
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = {
+                        val e = email.trim()
+                        val p = pseudo.trim()
+                        val n = nom.trim()
+                        val pr = prenom.trim()
+
+                        when {
+                            e.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(e).matches() -> errorMessage = "Invalid email address"
+                            password.length < 6 -> errorMessage = "Password must be at least 6 characters"
+                            n.isEmpty() -> errorMessage = "Last name is required"
+                            pr.isEmpty() -> errorMessage = "First name is required"
+                            else -> {
+                                authenticationViewModel.signUpWithEmail(
+                                    nom = n,
+                                    prenom = pr,
+                                    email = e,
+                                    pseudo = p,
+                                    password = password,
+                                    photoUrl = selectedPhotoUrl
+                                ) { success, err ->
+                                    if (success) {
+                                        errorMessage = ""
+                                        onSignUpSuccess()
+                                    } else {
+                                        errorMessage = err ?: "Sign-up failed"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isUploading,
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
+                    if (isUploading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Creating account...")
+                    } else {
+                        Text("Sign Up")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onBack, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+                    Text("Back")
+                }
+            }
+
+            // Photo picker bottom sheet
+            if (showPhotoPicker) {
+                ModalBottomSheet(onDismissRequest = { showPhotoPicker = false }) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+                        Text("Choose a profile picture", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                showPhotoPicker = false
+                                val uri = createCameraUri()
+                                if (uri != null) {
+                                    tempImageUri = uri
+                                    cameraLauncher.launch(uri)
+                                }
+                            }.padding(vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(28.dp))
+                            Spacer(Modifier.width(16.dp))
+                            Text("Take a photo", style = MaterialTheme.typography.bodyLarge)
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                showPhotoPicker = false
+                                galleryLauncher.launch("image/*")
+                            }.padding(vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(28.dp))
+                            Spacer(Modifier.width(16.dp))
+                            Text("Choose from gallery", style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun MainAuthenticationScreen(
@@ -77,11 +330,11 @@ fun MainAuthenticationScreen(
             // Appel au ViewModel — la callback effectue la navigation si succès
             authenticationViewModel.signInWithGoogle(idToken) { success, error ->
                 if (success) {
-                    Toast.makeText(context, "Connexion réussie", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Connexion Successful", Toast.LENGTH_SHORT).show()
                     onLoginSuccess()
                 } else {
                     Log.e("AuthScreen", "signInWithGoogle failed: $error")
-                    Toast.makeText(context, error ?: "Erreur de connexion", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, error ?: "Connexion error", Toast.LENGTH_SHORT).show()
                 }
             }
         } catch (t: Throwable) {
@@ -158,7 +411,7 @@ fun MainAuthenticationScreen(
                                     errorMessage = ""
                                     onLoginSuccess()
                                 } else {
-                                    errorMessage = error ?: "Email ou mot de passe incorrect."
+                                    errorMessage = error ?: "Email or password incorrect."
                                 }
                             }
                         },
@@ -168,7 +421,7 @@ fun MainAuthenticationScreen(
                         colors =  ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
 
                     ) {
-                        Text("Se connecter")
+                        Text("Login")
                     }
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -192,153 +445,10 @@ fun MainAuthenticationScreen(
                             .fillMaxWidth()
                             .height(50.dp)
                     ) {
-                        Text("Se connecter avec Google")
+                        Text("Login with Google")
                     }
                 }
             }
         }
     }
 }
-
-@Composable
-fun SignUpScreen(
-    authenticationViewModel: AuthenticationViewModel = hiltViewModel(),
-    onSignUpSuccess: () -> Unit,
-    onBack: () -> Unit
-) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var pseudo by remember { mutableStateOf("") }
-    var nom by remember { mutableStateOf("") }
-    var prenom by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(id = R.drawable.login_background),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        Scaffold(
-            containerColor = Color.Transparent,
-            modifier = Modifier.fillMaxSize()
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-                    .padding(padding),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = "Inscription", color = Color.White)
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = pseudo,
-                    onValueChange = { pseudo = it },
-                    label = { Text("User Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = nom,
-                    onValueChange = { nom = it },
-                    label = { Text("Last Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = prenom,
-                    onValueChange = { prenom = it },
-                    label = { Text("First Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                if (errorMessage.isNotEmpty()) {
-                    Text(
-                        text = errorMessage,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        val emailTrim = email.trim()
-                        val pseudoTrim = pseudo.trim()
-                        val nomTrim = nom.trim()
-                        val prenomTrim = prenom.trim()
-                        val passwordTrim = password
-                        if (emailTrim.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(emailTrim).matches()) {
-                            errorMessage = "Adresse e‑mail invalide"
-                            return@Button
-                        }
-                        if (passwordTrim.length < 6) {
-                            errorMessage = "Le mot de passe doit contenir au moins 6 caractères."
-                            return@Button
-                        }
-                        if (nomTrim.isEmpty()) {
-                            errorMessage = "Le nom est obligatoire."
-                            return@Button
-                        }
-                        if (prenomTrim.isEmpty()) {
-                            errorMessage = "Le prénom est obligatoire."
-                            return@Button
-                        }
-                        authenticationViewModel.signUpWithEmail(
-                            nomTrim,
-                            prenomTrim,
-                            emailTrim,
-                            pseudoTrim,
-                            passwordTrim
-                        ) { success, error ->
-                            if (success) {
-                                errorMessage = ""
-                                onSignUpSuccess()
-                            } else {
-                                errorMessage = error ?: "Une erreur est survenue lors de l'inscription."
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                ) {
-                    Text("S'inscrire")
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                ) {
-                    Text("Retour")
-                }
-            }
-        }
-    }
-}
-

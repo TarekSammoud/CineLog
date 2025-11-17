@@ -1,8 +1,10 @@
 package fr.eseo.ld.ts.cinelog.ui.screens
 
 import android.content.ContentValues
+import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -30,12 +32,16 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
-import fr.eseo.ld.ts.cinelog.ui.viewmodels.ReviewViewModel
 import fr.eseo.ld.ts.cinelog.data.User
 import fr.eseo.ld.ts.cinelog.model.Review
+import fr.eseo.ld.ts.cinelog.network.FreeImageHostUploader
 import fr.eseo.ld.ts.cinelog.ui.navigation.CineLogScreens
+import fr.eseo.ld.ts.cinelog.ui.viewmodels.AuthenticationViewModel
+import fr.eseo.ld.ts.cinelog.ui.viewmodels.ReviewViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import android.content.ContentResolver
+import android.content.Intent
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,7 +51,10 @@ fun ProfilScreen(
     reviewViewModel: ReviewViewModel = hiltViewModel(),
     navController: NavController
 ) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
+    var isUploading by remember { mutableStateOf(false) }
     val firestoreUser by authenticationViewModel.firestoreUser.collectAsState<User?>()
     val firebaseUser by authenticationViewModel.user.collectAsState()
 
@@ -55,28 +64,58 @@ fun ProfilScreen(
     var email by rememberSaveable { mutableStateOf(firestoreUser?.email ?: "") }
     var pseudo by rememberSaveable { mutableStateOf(firestoreUser?.pseudo ?: "") }
 
-    val context = LocalContext.current
     var showSheet by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
+    // Update state when firestoreUser changes (important after upload)
+    LaunchedEffect(firestoreUser) {
+        firestoreUser?.let {
+            nom = it.nom ?: ""
+            prenom = it.prenom ?: ""
+            email = it.email ?: ""
+            pseudo = it.pseudo ?: ""
+        }
+    }
+
+    // === Launchers ===
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? -> uri?.let { updatePhotoUrl(it, authenticationViewModel) } }
+    ) { uri: Uri? ->
+        uri?.let {
+            // CRITICAL: Take persistable permission immediately
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+            }
+
+            scope.launch {
+                uploadAndSavePhoto(uri, authenticationViewModel, context) { isUploading = it }
+            }
+        }
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
-        if (success && imageUri != null) updatePhotoUrl(imageUri!!, authenticationViewModel)
+        if (success && imageUri != null) {
+            scope.launch {
+                uploadAndSavePhoto(imageUri!!, authenticationViewModel, context) { isUploading = it }
+            }
+        }
     }
 
     fun createImageUri(): Uri? {
-        val contentResolver = context.contentResolver
         val contentValues = ContentValues().apply {
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.DISPLAY_NAME, "profile_${System.currentTimeMillis()}.jpg")
         }
-        return contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        return context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
     }
 
+    // Load reviews
     val currentUid = firebaseUser?.uid.orEmpty()
     LaunchedEffect(currentUid) {
         if (currentUid.isNotBlank()) reviewViewModel.loadMyReviews(currentUid)
@@ -87,13 +126,8 @@ fun ProfilScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "Profile",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 },
-
                 actions = {
                     IconButton(onClick = { editMode = !editMode }) {
                         Icon(
@@ -113,22 +147,17 @@ fun ProfilScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
+            // Profile Picture
             item {
-                Box(
-                    modifier = Modifier.padding(top = 24.dp, bottom = 16.dp)
-                ) {
+                Box(modifier = Modifier.padding(top = 24.dp, bottom = 16.dp)) {
                     Card(
                         modifier = Modifier
                             .size(150.dp)
-                            .clickable { showSheet = true },
+                            .clickable(enabled = !isUploading) { showSheet = true },
                         shape = CircleShape,
                         elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(8.dp)
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
                             if (firestoreUser?.photoUrl?.isNotEmpty() == true) {
                                 AsyncImage(
                                     model = firestoreUser?.photoUrl,
@@ -143,7 +172,16 @@ fun ProfilScreen(
                                     imageVector = Icons.Default.AccountCircle,
                                     contentDescription = "Default avatar",
                                     modifier = Modifier.fillMaxSize(),
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = Color.White
+                                )
+                            }
+
+                            if (isUploading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .align(Alignment.Center),
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -151,62 +189,35 @@ fun ProfilScreen(
                 }
             }
 
-
+            // User Info
             item {
                 ProfileInfoRow(label = "Username", value = firestoreUser?.pseudo ?: "–", icon = Icons.Default.Person)
                 ProfileInfoRow(label = "Email", value = firestoreUser?.email ?: "–", icon = Icons.Default.Email)
             }
 
+            // Edit Mode
             if (editMode) {
                 item {
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                         shape = RoundedCornerShape(16.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
                         Column(Modifier.padding(20.dp)) {
-                            EditableProfilInfoRow(
-                                label = "Last name",
-                                value = nom,
-                                onValueChange = { nom = it },
-                                icon = Icons.Default.Face
-                            )
+                            EditableProfilInfoRow(label = "Last name", value = nom, onValueChange = { nom = it }, icon = Icons.Default.Face)
                             HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                            EditableProfilInfoRow(
-                                label = "First name",
-                                value = prenom,
-                                onValueChange = { prenom = it },
-                                icon = Icons.Default.Face
-                            )
+                            EditableProfilInfoRow(label = "First name", value = prenom, onValueChange = { prenom = it }, icon = Icons.Default.Face)
                             HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                            EditableProfilInfoRow(
-                                label = "Email",
-                                value = email,
-                                onValueChange = { email = it },
-                                icon = Icons.Default.Email
-                            )
+                            EditableProfilInfoRow(label = "Email", value = email, onValueChange = { email = it }, icon = Icons.Default.Email)
                             HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                            EditableProfilInfoRow(
-                                label = "Username",
-                                value = pseudo,
-                                onValueChange = { pseudo = it },
-                                icon = Icons.Default.Person
-                            )
+                            EditableProfilInfoRow(label = "Username", value = pseudo, onValueChange = { pseudo = it }, icon = Icons.Default.Person)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-
                     Button(
                         onClick = {
-                            authenticationViewModel.updateUser(
-                                nom = nom,
-                                prenom = prenom,
-                                email = email,
-                                pseudo = pseudo
-                            )
+                            authenticationViewModel.updateUser(nom = nom, prenom = prenom, email = email, pseudo = pseudo)
                             editMode = false
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -214,32 +225,24 @@ fun ProfilScreen(
                 }
             }
 
+            // Reviews Section
             item {
                 Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    "My reviews",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Text("My reviews", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
             }
 
             if (myReviews.isEmpty()) {
                 item {
-                    Text(
-                        "No reviews yet.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 16.dp)
-                    )
+                    Text("No reviews yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
                 }
             } else {
                 items(myReviews) { review ->
-                    ReviewCard(review = review,navController)
+                    ReviewCard(review = review, navController = navController)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
 
+            // Logout
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 OutlinedButton(
@@ -248,52 +251,41 @@ fun ProfilScreen(
                         navController.navigate("auth") { popUpTo(0) }
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Logout",color = Color.White) }
+                ) { Text("Logout", color = Color.White) }
             }
         }
     }
 
+    // Bottom Sheet for Photo Picker
     if (showSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp, horizontal = 24.dp)
-            ) {
-                Text(
-                    "Choose a picture",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 24.dp)) {
+                Text("Choose a picture", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 16.dp))
+
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showSheet = false
-                            val uri = createImageUri()
-                            if (uri != null) {
-                                imageUri = uri
-                                cameraLauncher.launch(uri)
-                            }
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        showSheet = false
+                        val uri = createImageUri()
+                        if (uri != null) {
+                            imageUri = uri
+                            cameraLauncher.launch(uri)
                         }
-                        .padding(vertical = 12.dp),
+                    }.padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(16.dp))
                     Text("Take a picture", style = MaterialTheme.typography.bodyLarge)
                 }
+
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showSheet = false
-                            galleryLauncher.launch("image/*")
-                        }
-                        .padding(vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        showSheet = false
+                        galleryLauncher.launch("image/*")
+                    }.padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(28.dp))
@@ -305,16 +297,32 @@ fun ProfilScreen(
     }
 }
 
+// Upload function (now works inside composable)
+private suspend fun uploadAndSavePhoto(
+    uri: Uri,
+    authenticationViewModel: AuthenticationViewModel,
+    context: Context,
+    onUploadingChange: (Boolean) -> Unit
+) {
+    onUploadingChange(true)
+    val result = FreeImageHostUploader.uploadImage(context, uri)
+    onUploadingChange(false)
 
+    result.onSuccess { url ->
+        authenticationViewModel.updateUser(nom = authenticationViewModel.firestoreUser.value?.nom ?: "",
+            prenom = authenticationViewModel.firestoreUser.value?.prenom ?: "",
+            email = authenticationViewModel.firestoreUser.value?.email ?: "",
+            pseudo = authenticationViewModel.firestoreUser.value?.pseudo ?: "",
+            photoUrl = url)
+        Toast.makeText(context, "Profile picture updated!", Toast.LENGTH_SHORT).show()
+    }.onFailure { exception ->
+        Toast.makeText(context, "Upload failed: ${exception.message}", Toast.LENGTH_LONG).show()
+    }
+}
 @Composable
 private fun ProfileInfoRow(label: String, value: String, icon: ImageVector) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = Color.White)
         Spacer(Modifier.width(12.dp))
         Column {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -324,53 +332,32 @@ private fun ProfileInfoRow(label: String, value: String, icon: ImageVector) {
 }
 
 @Composable
-private fun EditableProfilInfoRow(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    icon: ImageVector
-) {
+private fun EditableProfilInfoRow(label: String, value: String, onValueChange: (String) -> Unit, icon: ImageVector) {
     Column {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 12.sp
-        )
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         Spacer(Modifier.height(4.dp))
-        TextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(icon, contentDescription = label) }
-        )
+        TextField(value = value, onValueChange = onValueChange, singleLine = true, modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(icon, contentDescription = label) })
     }
 }
 
 @Composable
-private fun ReviewCard(review: Review,navController: NavController) {
+private fun ReviewCard(review: Review, navController: NavController) {
     Card(
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        onClick = {
-            navController.navigate("${CineLogScreens.DETAILS_SCREEN.name}/tmdb/${review.movieId}")
-        }
+        onClick = { navController.navigate("${CineLogScreens.DETAILS_SCREEN.name}/tmdb/${review.movieId}") }
     ) {
         Row(modifier = Modifier.padding(12.dp)) {
             AsyncImage(
                 model = review.posterPath,
                 contentDescription = null,
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
                 placeholder = painterResource(android.R.drawable.ic_menu_gallery)
             )
             Spacer(Modifier.width(12.dp))
             Column {
-                // Rating stars
                 Row {
                     repeat(5) { idx ->
                         Icon(
@@ -392,17 +379,4 @@ private fun ReviewCard(review: Review,navController: NavController) {
             }
         }
     }
-}
-
-private fun updatePhotoUrl(
-    uri: Uri,
-    authenticationViewModel: AuthenticationViewModel
-) {
-    authenticationViewModel.updateUser(
-        nom = authenticationViewModel.firestoreUser.value?.nom ?: "",
-        prenom = authenticationViewModel.firestoreUser.value?.prenom ?: "",
-        email = authenticationViewModel.firestoreUser.value?.email ?: "",
-        pseudo = authenticationViewModel.firestoreUser.value?.pseudo ?: "",
-        photoUrl = uri.toString()
-    )
 }

@@ -356,7 +356,7 @@ fun MovieReviewSection(
             Icon(
                 imageVector = Icons.Default.Star,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = Color(0xFFFFB300),
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(4.dp))
@@ -453,24 +453,30 @@ private fun ReviewCard(review: Review) {
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Optional avatar placeholder
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
+        Row(modifier = Modifier.padding(12.dp)) {
+            // Profile Picture
+            AsyncImage(
+                model = when {
+                    !review.profilePicUrl.isNullOrBlank() -> review.profilePicUrl
+                    else -> "https://ui-avatars.com/api/?name=${review.username}"
+                },
+                contentDescription = "Profile picture of ${review.username}",
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.ic_launcher_foreground),
+                error = painterResource(R.drawable.ic_launcher_foreground)
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = review.username.take(1).uppercase(),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color.White
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                Column {
                     Text(
                         text = review.username,
                         style = MaterialTheme.typography.titleSmall,
@@ -482,13 +488,13 @@ private fun ReviewCard(review: Review) {
                         color = MaterialTheme.colorScheme.secondary
                     )
                 }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = review.comment,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = review.comment,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

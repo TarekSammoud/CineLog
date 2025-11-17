@@ -11,4 +11,5 @@ data class Review(
     val posterPath: String? = null,
     val timestamp: Date = Date(),
     val movieId: String = "",
+    var profilePicUrl: String? = ""
 )
